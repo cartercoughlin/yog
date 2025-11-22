@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSHealthShareUsageDescription</key>
+    <string>We need access to your health data to calculate your recovery score and provide personalized workout recommendations.</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>We need permission to save workout data to your Health app.</string>
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <true/>
+    </dict>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>healthkit</string>
+    </array>
+    <key>CFBundleDisplayName</key>
+    <string>Recovery</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.yourcompany.RecoveryApp</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+</dict>
+</plist>

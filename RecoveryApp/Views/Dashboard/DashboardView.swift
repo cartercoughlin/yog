@@ -1,0 +1,309 @@
+//
+//  DashboardView.swift
+//  RecoveryApp
+//
+//  Created on 2025-11-22
+//
+
+import SwiftUI
+
+struct DashboardView: View {
+    @StateObject private var viewModel = DashboardViewModel()
+    @State private var showAlgorithmBreakdown = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    if viewModel.isLoading {
+                        ProgressView("Loading your recovery data...")
+                            .padding(.top, 100)
+                    } else if let error = viewModel.error {
+                        ErrorView(message: error) {
+                            Task {
+                                await viewModel.refreshData()
+                            }
+                        }
+                    } else if let recovery = viewModel.todayRecovery {
+                        RecoveryScoreCard(recovery: recovery)
+
+                        Button {
+                            showAlgorithmBreakdown = true
+                        } label: {
+                            Label("How is this calculated?", systemImage: "info.circle")
+                                .font(.subheadline)
+                        }
+                        .padding(.horizontal)
+
+                        if let trend = viewModel.weeklyTrend {
+                            WeeklyTrendCard(
+                                average: trend.average,
+                                trend: trend.trend
+                            )
+                        }
+
+                        MetricsDetailCard(metrics: recovery.metrics)
+
+                        if let recommendation = viewModel.recommendation {
+                            NavigationLink {
+                                WorkoutDetailView(recommendation: recommendation)
+                            } label: {
+                                RecommendationPreviewCard(recommendation: recommendation)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    } else {
+                        EmptyStateView()
+                    }
+                }
+                .padding(.bottom, 20)
+            }
+            .navigationTitle("Recovery")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task {
+                            await viewModel.refreshData()
+                        }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .disabled(viewModel.isLoading)
+                }
+            }
+            .task {
+                await viewModel.loadData()
+            }
+            .sheet(isPresented: $showAlgorithmBreakdown) {
+                if let recovery = viewModel.todayRecovery {
+                    AlgorithmBreakdownView(
+                        recovery: recovery,
+                        historicalMetrics: viewModel.historicalMetrics
+                    )
+                }
+            }
+        }
+    }
+}
+
+struct WeeklyTrendCard: View {
+    let average: Double
+    let trend: Trend
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("7-Day Average")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("\(Int(average))")
+                        .font(.title)
+                        .fontWeight(.bold)
+
+                    HStack(spacing: 4) {
+        Image(systemName: trend.icon)
+                            .font(.caption)
+                        Text(trend.description)
+                            .font(.caption)
+                    }
+                    .foregroundStyle(trend == .improving ? .green : trend == .declining ? .red : .secondary)
+                }
+            }
+
+            Spacer()
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .padding(.horizontal)
+    }
+}
+
+struct MetricsDetailCard: View {
+    let metrics: HealthMetrics
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Today's Metrics")
+                .font(.headline)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                if let hrv = metrics.hrv {
+                    MetricItem(
+                        icon: "waveform.path.ecg",
+                        label: "HRV",
+                        value: String(format: "%.0f ms", hrv),
+                        color: .purple
+                    )
+                }
+
+                if let rhr = metrics.restingHeartRate {
+                    MetricItem(
+                        icon: "heart.fill",
+                        label: "Resting HR",
+                        value: "\(rhr) bpm",
+                        color: .red
+                    )
+                }
+
+                if let sleepHours = metrics.totalSleepHours {
+                    MetricItem(
+                        icon: "bed.double.fill",
+                        label: "Sleep",
+                        value: String(format: "%.1f hrs", sleepHours),
+                        color: .blue
+                    )
+                }
+
+                if let steps = metrics.steps {
+                    MetricItem(
+                        icon: "figure.walk",
+                        label: "Steps",
+                        value: "\(steps)",
+                        color: .green
+                    )
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .padding(.horizontal)
+    }
+}
+
+struct MetricItem: View {
+    let icon: String
+    let label: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(color)
+
+            Text(value)
+                .font(.title3)
+                .fontWeight(.semibold)
+
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(.systemBackground))
+        )
+    }
+}
+
+struct RecommendationPreviewCard: View {
+    let recommendation: WorkoutRecommendation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Today's Recommendation")
+                    .font(.headline)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack {
+                Image(systemName: recommendation.type.icon)
+                    .font(.title)
+                    .foregroundStyle(Color(recommendation.type.color))
+                    .frame(width: 50, height: 50)
+                    .background(
+                        Circle()
+                            .fill(Color(recommendation.type.color).opacity(0.1))
+                    )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(recommendation.title)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+
+                    Text("\(recommendation.durationInMinutes) min · \(recommendation.intensity.rawValue)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+
+            Text(recommendation.reason)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .padding(.horizontal)
+    }
+}
+
+struct ErrorView: View {
+    let message: String
+    let retry: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 50))
+                .foregroundStyle(.orange)
+
+            Text("Error Loading Data")
+                .font(.headline)
+
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            Button("Try Again", action: retry)
+                .buttonStyle(.borderedProminent)
+        }
+        .padding(.top, 100)
+    }
+}
+
+struct EmptyStateView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "heart.text.square")
+                .font(.system(size: 50))
+                .foregroundStyle(.secondary)
+
+            Text("No Data Available")
+                .font(.headline)
+
+            Text("Grant HealthKit permissions to see your recovery score")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+        }
+        .padding(.top, 100)
+    }
+}
+
+#Preview {
+    DashboardView()
+}

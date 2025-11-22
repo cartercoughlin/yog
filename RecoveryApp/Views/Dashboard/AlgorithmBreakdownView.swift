@@ -26,39 +26,39 @@ struct AlgorithmBreakdownView: View {
                     // HRV Component
                     ComponentBreakdownCard(
                         title: "Heart Rate Variability (HRV)",
-                        weight: 10,
+                        weight: 20,
                         score: recovery.hrvScore,
                         icon: "waveform.path.ecg",
                         color: .purple,
                         currentValue: recovery.metrics.hrv.map { String(format: "%.0f ms", $0) } ?? "N/A",
                         baseline: calculateHRVBaseline(),
-                        explanation: "HRV measures the variation in time between heartbeats. Higher HRV indicates better recovery and readiness to train.",
+                        explanation: "HRV measures the variation in time between heartbeats. Higher HRV indicates better recovery and readiness to train. Scored using percentile ranking within your last 30 days.",
                         calculation: getHRVCalculation()
                     )
 
                     // Resting HR Component
                     ComponentBreakdownCard(
                         title: "Resting Heart Rate",
-                        weight: 30,
+                        weight: 25,
                         score: recovery.restingHRScore,
                         icon: "heart.fill",
                         color: .red,
                         currentValue: recovery.metrics.restingHeartRate.map { "\($0) bpm" } ?? "N/A",
                         baseline: calculateRHRBaseline(),
-                        explanation: "Lower resting heart rate indicates better cardiovascular fitness and recovery.",
+                        explanation: "Lower resting heart rate indicates better cardiovascular fitness and recovery. Scored using percentile ranking within your last 30 days (inverted: lower RHR = higher score).",
                         calculation: getRHRCalculation()
                     )
 
                     // Sleep Component
                     ComponentBreakdownCard(
                         title: "Sleep Quality",
-                        weight: 30,
+                        weight: 25,
                         score: recovery.sleepScore,
                         icon: "bed.double.fill",
                         color: .blue,
                         currentValue: recovery.metrics.totalSleepHours.map { String(format: "%.1f hrs", $0) } ?? "N/A",
                         baseline: "7-9 hrs optimal",
-                        explanation: "Sleep duration and quality (REM/Deep sleep) are crucial for recovery.",
+                        explanation: "Sleep duration and quality (REM/Deep sleep) are crucial for recovery. 8+ hours scores 90-100.",
                         calculation: getSleepCalculation()
                     )
 
@@ -71,7 +71,7 @@ struct AlgorithmBreakdownView: View {
                         color: .orange,
                         currentValue: String(format: "%.0f", calculateAcuteLoad()),
                         baseline: String(format: "Chronic: %.0f", calculateChronicLoad()),
-                        explanation: "Compares your recent training (7 days) to long-term average (28 days). Optimal ratio is 0.5-1.5.",
+                        explanation: "INVERSE relationship: Lower recent training = better recovery. Low ratio (<0.6) = high recovery score (85-100).",
                         calculation: getTrainingLoadCalculation()
                     )
 
@@ -114,9 +114,9 @@ struct AlgorithmBreakdownView: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 4) {
-                ScoreSegment(value: recovery.hrvScore * 0.10, color: .purple)
-                ScoreSegment(value: recovery.restingHRScore * 0.30, color: .red)
-                ScoreSegment(value: recovery.sleepScore * 0.30, color: .blue)
+                ScoreSegment(value: recovery.hrvScore * 0.20, color: .purple)
+                ScoreSegment(value: recovery.restingHRScore * 0.25, color: .red)
+                ScoreSegment(value: recovery.sleepScore * 0.25, color: .blue)
                 ScoreSegment(value: recovery.trainingLoadScore * 0.30, color: .orange)
             }
             .frame(height: 12)
@@ -139,9 +139,9 @@ struct AlgorithmBreakdownView: View {
                 .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 4) {
-                FormulaRow(component: "HRV Score", weight: "10%", value: recovery.hrvScore, color: .purple)
-                FormulaRow(component: "Resting HR Score", weight: "30%", value: recovery.restingHRScore, color: .red)
-                FormulaRow(component: "Sleep Score", weight: "30%", value: recovery.sleepScore, color: .blue)
+                FormulaRow(component: "HRV Score", weight: "20%", value: recovery.hrvScore, color: .purple)
+                FormulaRow(component: "Resting HR Score", weight: "25%", value: recovery.restingHRScore, color: .red)
+                FormulaRow(component: "Sleep Score", weight: "25%", value: recovery.sleepScore, color: .blue)
                 FormulaRow(component: "Training Load Score", weight: "30%", value: recovery.trainingLoadScore, color: .orange)
             }
             .padding(.leading, 8)
@@ -152,7 +152,7 @@ struct AlgorithmBreakdownView: View {
                 Text("Total:")
                     .fontWeight(.semibold)
                 Spacer()
-                Text(String(format: "%.1f × 0.10 + %.1f × 0.30 + %.1f × 0.30 + %.1f × 0.30",
+                Text(String(format: "%.1f × 0.20 + %.1f × 0.25 + %.1f × 0.25 + %.1f × 0.30",
                             recovery.hrvScore, recovery.restingHRScore, recovery.sleepScore, recovery.trainingLoadScore))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -214,11 +214,11 @@ struct AlgorithmBreakdownView: View {
     // MARK: - Calculation Helpers
 
     private func calculateHRVBaseline() -> String {
-        let last7Days = historicalMetrics.suffix(7)
-        let hrvValues = last7Days.compactMap { $0.hrv }
+        let last30Days = historicalMetrics.suffix(30)
+        let hrvValues = last30Days.compactMap { $0.hrv }
         guard !hrvValues.isEmpty else { return "N/A" }
         let avg = hrvValues.reduce(0.0, +) / Double(hrvValues.count)
-        return String(format: "%.0f ms (7-day avg)", avg)
+        return String(format: "%.0f ms (30-day avg)", avg)
     }
 
     private func calculateRHRBaseline() -> String {
@@ -260,22 +260,63 @@ struct AlgorithmBreakdownView: View {
     private func getHRVCalculation() -> String {
         guard let currentHRV = recovery.metrics.hrv else { return "No HRV data available" }
 
-        let last7Days = historicalMetrics.suffix(7)
-        let hrvValues = last7Days.compactMap { $0.hrv }
-        guard !hrvValues.isEmpty else { return "Insufficient historical data" }
+        let last30Days = historicalMetrics.suffix(30)
+        let hrvValues = last30Days.compactMap { $0.hrv }
 
+        guard hrvValues.count >= 7 else {
+            let baseline = hrvValues.isEmpty ? currentHRV : hrvValues.reduce(0.0, +) / Double(hrvValues.count)
+            let deviation = ((currentHRV - baseline) / baseline) * 100
+            return """
+            Current: \(String(format: "%.0f", currentHRV)) ms
+            Baseline: \(String(format: "%.0f", baseline)) ms
+
+            Insufficient data for percentile scoring.
+            Using deviation formula:
+            Score = 50 + (deviation × 2)
+            Score = \(String(format: "%.1f", recovery.hrvScore))
+            """
+        }
+
+        let sortedValues = hrvValues.sorted()
+        let percentile = calculatePercentile(value: currentHRV, in: sortedValues)
         let baseline = hrvValues.reduce(0.0, +) / Double(hrvValues.count)
-        let deviation = ((currentHRV - baseline) / baseline) * 100
 
         return """
         Current: \(String(format: "%.0f", currentHRV)) ms
-        Baseline (7-day): \(String(format: "%.0f", baseline)) ms
-        Deviation: \(String(format: "%+.1f%%", deviation))
+        30-day avg: \(String(format: "%.0f", baseline)) ms
 
-        Score = 50 + (deviation × 2)
-        Score = 50 + (\(String(format: "%.1f", deviation)) × 2)
-        Score = \(String(format: "%.1f", recovery.hrvScore))
+        Percentile-based scoring:
+        Your percentile: \(String(format: "%.0f", percentile))th
+
+        Score ranges:
+        • Top 20% (80-100th) → 85-100
+        • Above median (60-80th) → 75-85
+        • Near median (40-60th) → 65-75
+        • Below median (20-40th) → 50-65
+        • Bottom 20% (0-20th) → 0-50
+
+        Final Score = \(String(format: "%.1f", recovery.hrvScore))
         """
+    }
+
+    private func calculatePercentile(value: Double, in sortedValues: [Double]) -> Double {
+        guard !sortedValues.isEmpty else { return 50.0 }
+
+        let count = sortedValues.count
+        var valuesBelow = 0
+
+        for sortedValue in sortedValues {
+            if sortedValue < value {
+                valuesBelow += 1
+            } else if sortedValue == value {
+                valuesBelow += 1
+                break
+            } else {
+                break
+            }
+        }
+
+        return (Double(valuesBelow) / Double(count)) * 100.0
     }
 
     private func getRHRCalculation() -> String {
@@ -283,53 +324,129 @@ struct AlgorithmBreakdownView: View {
 
         let last30Days = historicalMetrics.suffix(30)
         let rhrValues = last30Days.compactMap { $0.restingHeartRate }
-        guard !rhrValues.isEmpty else { return "Insufficient historical data" }
 
+        guard rhrValues.count >= 7 else {
+            let baseline = rhrValues.isEmpty ? Double(currentRHR) : Double(rhrValues.reduce(0, +)) / Double(rhrValues.count)
+            let deviation = baseline - Double(currentRHR)
+            return """
+            Current: \(currentRHR) bpm
+            Baseline: \(String(format: "%.0f", baseline)) bpm
+
+            Insufficient data for percentile scoring.
+            Using deviation formula:
+            Score = 50 + (deviation × 5)
+            Score = \(String(format: "%.1f", recovery.restingHRScore))
+
+            (Lower RHR = Better recovery)
+            """
+        }
+
+        let sortedValues = rhrValues.sorted()
+        let percentile = calculatePercentileInt(value: currentRHR, in: sortedValues)
+        let inversePercentile = 100 - percentile
         let baseline = Double(rhrValues.reduce(0, +)) / Double(rhrValues.count)
-        let deviation = baseline - Double(currentRHR)
 
         return """
         Current: \(currentRHR) bpm
-        Baseline (30-day): \(String(format: "%.0f", baseline)) bpm
-        Deviation: \(String(format: "%+.0f", deviation)) bpm
+        30-day avg: \(String(format: "%.0f", baseline)) bpm
 
-        Score = 50 + (deviation × 5)
-        Score = 50 + (\(String(format: "%.0f", deviation)) × 5)
-        Score = \(String(format: "%.1f", recovery.restingHRScore))
+        Percentile-based scoring (INVERTED):
+        Your RHR percentile: \(String(format: "%.0f", percentile))th
+        Inverse percentile: \(String(format: "%.0f", inversePercentile))th
 
-        (Lower RHR = Better recovery)
+        Lower RHR = Better recovery
+        • Top 20% (lowest RHR, 80-100 inv.) → 85-100
+        • Above median (60-80 inv.) → 75-85
+        • Near median (40-60 inv.) → 65-75
+        • Below median (20-40 inv.) → 50-65
+        • Bottom 20% (highest RHR, 0-20 inv.) → 0-50
+
+        Final Score = \(String(format: "%.1f", recovery.restingHRScore))
         """
+    }
+
+    private func calculatePercentileInt(value: Int, in sortedValues: [Int]) -> Double {
+        guard !sortedValues.isEmpty else { return 50.0 }
+
+        let count = sortedValues.count
+        var valuesBelow = 0
+
+        for sortedValue in sortedValues {
+            if sortedValue < value {
+                valuesBelow += 1
+            } else if sortedValue == value {
+                valuesBelow += 1
+                break
+            } else {
+                break
+            }
+        }
+
+        return (Double(valuesBelow) / Double(count)) * 100.0
     }
 
     private func getSleepCalculation() -> String {
         guard let sleepHours = recovery.metrics.totalSleepHours else { return "No sleep data available" }
 
-        let durationScore = min(100, (sleepHours / 8.0) * 100)
+        let durationScore: Double
+        if sleepHours >= 8.0 {
+            durationScore = min(100, 90 + (sleepHours - 8.0) * 5)
+        } else if sleepHours >= 7.0 {
+            durationScore = 75 + (sleepHours - 7.0) * 15
+        } else if sleepHours >= 6.0 {
+            durationScore = 55 + (sleepHours - 6.0) * 20
+        } else {
+            durationScore = sleepHours * 7
+        }
 
         var calc = """
         Total Sleep: \(String(format: "%.1f", sleepHours)) hours
+
+        Duration Score Ranges:
+        • 8+ hours → 90-100 (excellent)
+        • 7-8 hours → 75-90 (good)
+        • 6-7 hours → 55-75 (adequate)
+        • <6 hours → progressively lower
+
         Duration Score: \(String(format: "%.1f", durationScore))
         """
 
         if let deepPct = recovery.metrics.deepSleepPercentage,
            let remPct = recovery.metrics.remSleepPercentage {
-            let deepScore = min(100, (deepPct / 20.0) * 100)
-            let remScore = min(100, (remPct / 22.5) * 100)
+            let deepScore: Double
+            if deepPct >= 18.0 {
+                deepScore = min(100, 85 + (deepPct - 18.0) * 3)
+            } else if deepPct >= 13.0 {
+                deepScore = 60 + (deepPct - 13.0) * 5
+            } else {
+                deepScore = deepPct * 4.6
+            }
+
+            let remScore: Double
+            if remPct >= 20.0 {
+                remScore = min(100, 85 + (remPct - 20.0) * 3)
+            } else if remPct >= 15.0 {
+                remScore = 60 + (remPct - 15.0) * 5
+            } else {
+                remScore = remPct * 4
+            }
 
             calc += """
 
 
-            Deep Sleep: \(String(format: "%.1f%%", deepPct)) (target: 15-25%)
+            Deep Sleep: \(String(format: "%.1f%%", deepPct))
+            (18%+ = excellent, 13-18% = good)
             Deep Score: \(String(format: "%.1f", deepScore))
 
-            REM Sleep: \(String(format: "%.1f%%", remPct)) (target: 20-25%)
+            REM Sleep: \(String(format: "%.1f%%", remPct))
+            (20%+ = excellent, 15-20% = good)
             REM Score: \(String(format: "%.1f", remScore))
 
-            Final = (Duration × 0.5) + (Deep × 0.3) + (REM × 0.2)
+            Final = (Duration × 0.4) + (Deep × 0.35) + (REM × 0.25)
             Final = \(String(format: "%.1f", recovery.sleepScore))
             """
         } else {
-            calc += "\n\nFinal Score = \(String(format: "%.1f", recovery.sleepScore))"
+            calc += "\n\nNo sleep stage data available.\nFinal Score = \(String(format: "%.1f", recovery.sleepScore))"
         }
 
         return calc
@@ -351,12 +468,19 @@ struct AlgorithmBreakdownView: View {
         Ratio = \(String(format: "%.0f", acute)) / \(String(format: "%.0f", chronic))
         Ratio = \(String(format: "%.2f", ratio))
 
-        Optimal Range: 0.8 - 1.3
-        < 0.8: Detraining
-        0.8-1.3: Optimal
-        > 1.3: High injury risk
+        RECOVERY SCORING (INVERSE):
+        Lower training = Better recovery
 
-        Score = \(String(format: "%.1f", recovery.trainingLoadScore))
+        Score Ranges:
+        • Ratio < 0.3 → 95-100 (excellent recovery)
+        • Ratio 0.3-0.6 → 85-95 (very good recovery)
+        • Ratio 0.6-1.0 → 70-85 (good recovery)
+        • Ratio 1.0-1.3 → 55-70 (moderate recovery)
+        • Ratio 1.3-1.6 → 40-55 (low recovery)
+        • Ratio 1.6-2.0 → 25-40 (very low recovery)
+        • Ratio > 2.0 → 0-25 (minimal recovery)
+
+        Final Score = \(String(format: "%.1f", recovery.trainingLoadScore))
         """
     }
 }

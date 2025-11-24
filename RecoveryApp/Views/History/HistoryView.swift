@@ -72,7 +72,7 @@ struct HistoryView: View {
 
             StatCard(
                 title: "Distance",
-                value: String(format: "%.1f km", viewModel.totalDistance),
+                value: String(format: "%.1f mi", viewModel.totalDistance / 1.60934),
                 icon: "location.fill",
                 color: .green
             )
@@ -187,23 +187,17 @@ struct WorkoutHistoryRow: View {
     let workout: WorkoutData
 
     var body: some View {
-        HStack {
-            Image(systemName: workout.type.icon)
-                .font(.title3)
-                .foregroundStyle(Color(workout.type.color))
-                .frame(width: 40, height: 40)
-                .background(
-                    Circle()
-                        .fill(Color(workout.type.color).opacity(0.1))
-                )
+        HStack(spacing: 12) {
+            Text(workout.type.emoji)
+                .font(.title)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(workout.type.rawValue)
                     .font(.headline)
 
                 HStack(spacing: 12) {
-                    if let distance = workout.distanceInKilometers {
-                        Label(String(format: "%.1f km", distance), systemImage: "location.fill")
+                    if let distance = workout.distanceInMiles {
+                        Label(String(format: "%.1f mi", distance), systemImage: "location.fill")
                             .font(.caption)
                     }
 
@@ -220,7 +214,7 @@ struct WorkoutHistoryRow: View {
 
             Spacer()
 
-            Text(workout.date, style: .relative)
+            Text(formatRelativeTime(workout.date))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -240,6 +234,18 @@ struct WorkoutHistoryRow: View {
             return "\(hours)h \(mins)m"
         } else {
             return "\(mins)m"
+        }
+    }
+
+    private func formatRelativeTime(_ date: Date) -> String {
+        let timeInterval = Date().timeIntervalSince(date)
+        let hours = timeInterval / 3600
+
+        if hours >= 24 {
+            let days = Int(hours / 24)
+            return "\(days)d ago"
+        } else {
+            return date.formatted(.relative(presentation: .named))
         }
     }
 }

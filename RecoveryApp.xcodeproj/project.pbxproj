@@ -418,6 +418,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "We need access to your health data to calculate your recovery score and provide personalized workout recommendations.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "We need permission to save workout data to your Health app.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to display current local weather conditions on the home screen.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -453,6 +454,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "We need access to your health data to calculate your recovery score and provide personalized workout recommendations.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "We need permission to save workout data to your Health app.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to display current local weather conditions on the home screen.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

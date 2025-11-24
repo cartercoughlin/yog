@@ -33,6 +33,20 @@ enum WorkoutType: String, Codable, CaseIterable {
         }
     }
 
+    var emoji: String {
+        switch self {
+        case .running: return "🏃"
+        case .cycling: return "🚴"
+        case .swimming: return "🏊"
+        case .strength: return "💪"
+        case .yoga: return "🧘"
+        case .mobility: return "🤸"
+        case .walking: return "🚶"
+        case .rest: return "😴"
+        case .other: return "🏋️"
+        }
+    }
+
     var color: String {
         switch self {
         case .running: return "blue"

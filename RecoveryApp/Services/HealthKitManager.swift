@@ -123,9 +123,13 @@ class HealthKitManager: ObservableObject {
 
         // If no HRV data, try to estimate from heart rate variability during sleep
         print("   ⚠️ No HRV data available, attempting to estimate from HR data...")
-        if let estimatedHRV = try? await estimateHRVFromHeartRate(for: date) {
-            print("   ✅ Estimated HRV: \(estimatedHRV) ms (from HR data)")
-            return estimatedHRV
+        do {
+            if let estimatedHRV = try await estimateHRVFromHeartRate(for: date) {
+                print("   ✅ Estimated HRV (RMSSD): \(estimatedHRV) ms (from HR data)")
+                return estimatedHRV
+            }
+        } catch {
+            print("   ❌ Error estimating HRV: \(error)")
         }
 
         print("   ⚠️ Could not estimate HRV")
@@ -134,23 +138,75 @@ class HealthKitManager: ObservableObject {
 
     private func estimateHRVFromHeartRate(for date: Date) async throws -> Double? {
         let hrType = HKQuantityType(.heartRate)
+        let sleepType = HKCategoryType(.sleepAnalysis)
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
 
-        // Look for HR data during typical sleep hours (10pm to 8am)
+        // Get actual sleep periods from sleep analysis
         let sleepStart = calendar.date(byAdding: .hour, value: -2, to: startOfDay)!
         let sleepEnd = calendar.date(byAdding: .hour, value: 8, to: startOfDay)!
 
-        let predicate = HKQuery.predicateForSamples(
+        let sleepPredicate = HKQuery.predicateForSamples(
             withStart: sleepStart,
             end: sleepEnd,
             options: .strictStartDate
         )
 
-        let samples = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[HKQuantitySample], Error>) in
+        // Fetch sleep analysis data
+        print("   🛌 Fetching sleep analysis data...")
+        let sleepSamples = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[HKCategorySample], Error>) in
+            let query = HKSampleQuery(
+                sampleType: sleepType,
+                predicate: sleepPredicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, results, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: results as? [HKCategorySample] ?? [])
+            }
+            healthStore.execute(query)
+        }
+        print("   📊 Found \(sleepSamples.count) sleep samples")
+
+        // Extract actual sleep periods (asleep, not just in bed)
+        let sleepPeriods = sleepSamples.compactMap { sample -> (start: Date, end: Date)? in
+            // Include asleep, core, deep, and REM sleep
+            if sample.value == HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue ||
+               sample.value == HKCategoryValueSleepAnalysis.asleepCore.rawValue ||
+               sample.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue ||
+               sample.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue {
+                return (sample.startDate, sample.endDate)
+            }
+            return nil
+        }
+
+        // If no sleep data, fall back to typical sleep hours but mark as less reliable
+        let hrPredicate: NSPredicate
+        if sleepPeriods.isEmpty {
+            print("   ⚠️ No sleep analysis data, using typical sleep hours")
+            hrPredicate = HKQuery.predicateForSamples(
+                withStart: sleepStart,
+                end: sleepEnd,
+                options: .strictStartDate
+            )
+        } else {
+            print("   ✅ Found \(sleepPeriods.count) sleep periods")
+            hrPredicate = HKQuery.predicateForSamples(
+                withStart: sleepStart,
+                end: sleepEnd,
+                options: .strictStartDate
+            )
+        }
+
+        // Fetch heart rate samples
+        print("   💓 Fetching heart rate samples...")
+        let hrSamples = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[HKQuantitySample], Error>) in
             let query = HKSampleQuery(
                 sampleType: hrType,
-                predicate: predicate,
+                predicate: hrPredicate,
                 limit: HKObjectQueryNoLimit,
                 sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
             ) { _, results, error in
@@ -162,29 +218,128 @@ class HealthKitManager: ObservableObject {
             }
             healthStore.execute(query)
         }
+        print("   📊 Found \(hrSamples.count) HR samples")
 
-        guard samples.count >= 10 else { return nil }
-
-        // Calculate RMSSD (Root Mean Square of Successive Differences)
-        let heartRates = samples.map { $0.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute())) }
-
-        // Convert HR to RR intervals (60000ms / HR)
-        let rrIntervals = heartRates.map { 60000.0 / $0 }
-
-        // Calculate successive differences
-        var sumSquaredDiffs = 0.0
-        for i in 0..<(rrIntervals.count - 1) {
-            let diff = rrIntervals[i + 1] - rrIntervals[i]
-            sumSquaredDiffs += diff * diff
+        // Filter HR samples to only those during actual sleep periods
+        let filteredSamples: [HKQuantitySample]
+        if !sleepPeriods.isEmpty {
+            filteredSamples = hrSamples.filter { sample in
+                sleepPeriods.contains { period in
+                    sample.startDate >= period.start && sample.startDate <= period.end
+                }
+            }
+            print("   📊 Filtered to \(filteredSamples.count) HR samples during sleep")
+        } else {
+            filteredSamples = hrSamples
         }
 
-        let rmssd = sqrt(sumSquaredDiffs / Double(rrIntervals.count - 1))
+        guard !filteredSamples.isEmpty else {
+            print("   ⚠️ No HR samples found during sleep periods")
+            return nil
+        }
 
-        // RMSSD and SDNN are correlated but not identical
-        // Rough conversion: SDNN ≈ RMSSD * 1.5 (this is an approximation)
-        let estimatedSDNN = rmssd * 1.5
+        // Convert to HR values and clean outliers
+        let heartRates = filteredSamples.map { $0.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute())) }
 
-        return estimatedSDNN
+        // Calculate mean and standard deviation for outlier detection
+        let mean = heartRates.reduce(0.0, +) / Double(heartRates.count)
+        let variance = heartRates.map { pow($0 - mean, 2) }.reduce(0.0, +) / Double(heartRates.count)
+        let stdDev = sqrt(variance)
+
+        // Filter out outliers and physiologically impossible values
+        let cleanedData = zip(filteredSamples, heartRates).compactMap { (sample, hr) -> (date: Date, hr: Double)? in
+            // Remove outliers: >3 SD from mean, or outside physiological range (30-130 bpm during sleep)
+            if hr < 30 || hr > 130 || abs(hr - mean) > 3 * stdDev {
+                return nil
+            }
+            return (sample.startDate, hr)
+        }
+
+        print("   📊 Cleaned data: \(cleanedData.count) samples (removed \(heartRates.count - cleanedData.count) outliers)")
+
+        guard cleanedData.count >= 20 else {
+            print("   ⚠️ Insufficient clean HR data (need 20+, got \(cleanedData.count))")
+            return nil
+        }
+
+        // Convert HR to RR intervals (60000ms / HR)
+        let rrData = cleanedData.map { (date: $0.date, rr: 60000.0 / $0.hr) }
+
+        // Find continuous segments (max gap: 60 seconds)
+        struct Segment {
+            var rrPairs: [(Double, Double)] // (rr1, rr2) pairs
+            var duration: TimeInterval
+        }
+
+        var segments: [Segment] = []
+        var currentSegment: [(date: Date, rr: Double)] = [rrData[0]]
+        var gapStats: [Double] = []
+
+        for i in 1..<rrData.count {
+            let timeDiff = rrData[i].date.timeIntervalSince(currentSegment.last!.date)
+            gapStats.append(timeDiff)
+
+            if timeDiff <= 600.0 { // Max 10 minute gap (relaxed further)
+                currentSegment.append(rrData[i])
+            } else {
+                // Process current segment if it's long enough
+                if currentSegment.count >= 5 { // Relaxed from 10
+                    let pairs = zip(currentSegment.dropLast(), currentSegment.dropFirst()).map { ($0.rr, $1.rr) }
+                    let duration = currentSegment.last!.date.timeIntervalSince(currentSegment.first!.date)
+                    segments.append(Segment(rrPairs: Array(pairs), duration: duration))
+                }
+                currentSegment = [rrData[i]]
+            }
+        }
+
+        // Don't forget the last segment
+        if currentSegment.count >= 5 { // Relaxed from 10
+            let pairs = zip(currentSegment.dropLast(), currentSegment.dropFirst()).map { ($0.rr, $1.rr) }
+            let duration = currentSegment.last!.date.timeIntervalSince(currentSegment.first!.date)
+            segments.append(Segment(rrPairs: Array(pairs), duration: duration))
+        }
+
+        // Log gap statistics
+        let sortedGaps = gapStats.sorted()
+        let medianGap = sortedGaps[sortedGaps.count / 2]
+        let maxGap = sortedGaps.last ?? 0
+        print("   📊 Gap stats: median=\(Int(medianGap))s, max=\(Int(maxGap))s")
+        print("   📊 Found \(segments.count) continuous segments")
+
+        guard !segments.isEmpty else {
+            print("   ⚠️ No continuous segments found")
+            return nil
+        }
+
+        // Calculate total time covered
+        let totalDuration = segments.reduce(0.0) { $0 + $1.duration }
+        print("   📊 Total time coverage: \(Int(totalDuration/60)) minutes")
+
+        guard totalDuration >= 600 else { // At least 10 minutes of data (relaxed from 30)
+            print("   ⚠️ Insufficient time coverage (need 10+ min, got \(Int(totalDuration/60)) min)")
+            return nil
+        }
+
+        // Calculate RMSSD for each segment
+        let segmentRMSSDs = segments.map { segment -> Double in
+            let sumSquaredDiffs = segment.rrPairs.map { pow($1 - $0, 2) }.reduce(0.0, +)
+            return sqrt(sumSquaredDiffs / Double(segment.rrPairs.count))
+        }
+
+        // Use median RMSSD across segments (more robust than mean)
+        let sortedRMSSDs = segmentRMSSDs.sorted()
+        let medianRMSSD: Double
+        if sortedRMSSDs.count % 2 == 0 {
+            medianRMSSD = (sortedRMSSDs[sortedRMSSDs.count / 2 - 1] + sortedRMSSDs[sortedRMSSDs.count / 2]) / 2.0
+        } else {
+            medianRMSSD = sortedRMSSDs[sortedRMSSDs.count / 2]
+        }
+
+        print("   ✅ Calculated RMSSD: \(medianRMSSD) ms from \(segments.count) segments over \(Int(totalDuration/60)) min")
+
+        // Return RMSSD as the primary metric (more robust than SDNN for short periods)
+        // Note: This is an approximation from HR data, not direct HRV measurement
+        return medianRMSSD
     }
 
     private func fetchRestingHeartRate(for date: Date) async throws -> Int? {

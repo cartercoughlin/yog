@@ -61,14 +61,18 @@ struct DashboardView: View {
             .navigationTitle("Recovery")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task {
-                            await viewModel.refreshData()
+                    HStack(spacing: 12) {
+                        WeatherWidget()
+
+                        Button {
+                            Task {
+                                await viewModel.refreshData()
+                            }
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
                         }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
+                        .disabled(viewModel.isLoading)
                     }
-                    .disabled(viewModel.isLoading)
                 }
             }
             .task {
@@ -222,15 +226,9 @@ struct RecommendationPreviewCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            HStack {
-                Image(systemName: recommendation.type.icon)
-                    .font(.title)
-                    .foregroundStyle(Color(recommendation.type.color))
-                    .frame(width: 50, height: 50)
-                    .background(
-                        Circle()
-                            .fill(Color(recommendation.type.color).opacity(0.1))
-                    )
+            HStack(spacing: 12) {
+                Text(recommendation.type.emoji)
+                    .font(.largeTitle)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(recommendation.title)

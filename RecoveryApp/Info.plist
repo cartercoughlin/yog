@@ -6,6 +6,8 @@
     <string>We need access to your health data to calculate your recovery score and provide personalized workout recommendations.</string>
     <key>NSHealthUpdateUsageDescription</key>
     <string>We need permission to save workout data to your Health app.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>We need your location to display current local weather conditions on the home screen.</string>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

@@ -24,11 +24,17 @@ struct ContentView: View {
                 }
                 .tag(1)
 
+            TrainingPlanView()
+                .tabItem {
+                    Label("Training", systemImage: "figure.run")
+                }
+                .tag(2)
+
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
-                .tag(2)
+                .tag(3)
         }
     }
 }

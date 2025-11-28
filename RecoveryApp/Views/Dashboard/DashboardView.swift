@@ -42,7 +42,10 @@ struct DashboardView: View {
                             )
                         }
 
-                        MetricsDetailCard(metrics: recovery.metrics)
+                        MetricsDetailCard(
+                            metrics: recovery.metrics,
+                            historicalMetrics: viewModel.historicalMetrics
+                        )
 
                         if let recommendation = viewModel.recommendation {
                             NavigationLink {
@@ -129,6 +132,7 @@ struct WeeklyTrendCard: View {
 
 struct MetricsDetailCard: View {
     let metrics: HealthMetrics
+    let historicalMetrics: [HealthMetrics]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -137,39 +141,71 @@ struct MetricsDetailCard: View {
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                 if let hrv = metrics.hrv {
-                    MetricItem(
-                        icon: "waveform.path.ecg",
-                        label: "HRV",
-                        value: String(format: "%.0f ms", hrv),
-                        color: .purple
-                    )
+                    NavigationLink {
+                        MetricDetailView(
+                            metricType: .hrv,
+                            historicalMetrics: historicalMetrics
+                        )
+                    } label: {
+                        MetricItem(
+                            icon: "waveform.path.ecg",
+                            label: "HRV",
+                            value: String(format: "%.0f ms", hrv),
+                            color: .purple
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
 
                 if let rhr = metrics.restingHeartRate {
-                    MetricItem(
-                        icon: "heart.fill",
-                        label: "Resting HR",
-                        value: "\(rhr) bpm",
-                        color: .red
-                    )
+                    NavigationLink {
+                        MetricDetailView(
+                            metricType: .restingHeartRate,
+                            historicalMetrics: historicalMetrics
+                        )
+                    } label: {
+                        MetricItem(
+                            icon: "heart.fill",
+                            label: "Resting HR",
+                            value: "\(rhr) bpm",
+                            color: .red
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
 
                 if let sleepHours = metrics.totalSleepHours {
-                    MetricItem(
-                        icon: "bed.double.fill",
-                        label: "Sleep",
-                        value: String(format: "%.1f hrs", sleepHours),
-                        color: .blue
-                    )
+                    NavigationLink {
+                        MetricDetailView(
+                            metricType: .sleep,
+                            historicalMetrics: historicalMetrics
+                        )
+                    } label: {
+                        MetricItem(
+                            icon: "bed.double.fill",
+                            label: "Sleep",
+                            value: String(format: "%.1f hrs", sleepHours),
+                            color: .blue
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
 
                 if let steps = metrics.steps {
-                    MetricItem(
-                        icon: "figure.walk",
-                        label: "Steps",
-                        value: "\(steps)",
-                        color: .green
-                    )
+                    NavigationLink {
+                        MetricDetailView(
+                            metricType: .steps,
+                            historicalMetrics: historicalMetrics
+                        )
+                    } label: {
+                        MetricItem(
+                            icon: "figure.walk",
+                            label: "Steps",
+                            value: "\(steps)",
+                            color: .green
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
             }
         }

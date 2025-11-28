@@ -1,12 +1,23 @@
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
 class TrainingPlanViewModel: ObservableObject {
-    @Published var currentPlan: TrainingPlan?
+    @Published var trainingPlans: [TrainingPlan] = [] {
+        didSet {
+            savePlans()
+        }
+    }
+    @Published var currentPlan: TrainingPlan? {
+        didSet {
+            savePlans()
+        }
+    }
     @Published var isCreatingPlan = false
 
     // Plan creation inputs
+    @Published var planName = ""
     @Published var selectedDistance: RaceDistance = .marathon
     @Published var selectedRaceDate = Calendar.current.date(byAdding: .month, value: 6, to: Date()) ?? Date()
     @Published var goalHours = 3
@@ -21,6 +32,12 @@ class TrainingPlanViewModel: ObservableObject {
     @Published var adjustmentSuggestion: String?
 
     private let healthKitManager = HealthKitManager()
+    private let userDefaultsKey = "savedTrainingPlans"
+    private var isLoadingPlans = false
+
+    init() {
+        loadPlans()
+    }
 
     // MARK: - Plan Generation
 
@@ -33,14 +50,12 @@ class TrainingPlanViewModel: ObservableObject {
             timeInSeconds: goalTime
         )
 
-        let totalWeeks = selectedDistance.recommendedWeeks
-        let weeksUntilRace = Calendar.current.dateComponents(
-            [.weekOfYear],
-            from: Date(),
-            to: selectedRaceDate
-        ).weekOfYear ?? totalWeeks
+        // Calculate goal marathon pace (seconds per mile)
+        let marathonMiles = selectedDistance.meters / 1609.34
+        let goalMarathonPaceSecPerMile = goalTime / marathonMiles
 
-        let actualWeeks = min(totalWeeks, max(8, weeksUntilRace))
+        // Always create a 16-week plan regardless of race date
+        let actualWeeks = 16
 
         var weeks: [WeeklyPlan] = []
         let startDate = Calendar.current.date(
@@ -49,7 +64,7 @@ class TrainingPlanViewModel: ObservableObject {
             to: selectedRaceDate
         ) ?? Date()
 
-        // Generate weeks following Jack Daniels' phase structure
+        // Generate weeks following periodized phase structure
         for weekNumber in 0..<actualWeeks {
             let phase = determinePhase(weekNumber: weekNumber, totalWeeks: actualWeeks)
             let weekStartDate = Calendar.current.date(
@@ -68,20 +83,29 @@ class TrainingPlanViewModel: ObservableObject {
                 weekNumber: weekNumber + 1,
                 phase: phase,
                 targetMileage: mileage,
-                vdot: vdot,
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
                 raceDistance: selectedDistance,
                 weekStartDate: weekStartDate
             )
+
+            let isStepback = isStepbackWeek(weekNumber: weekNumber + 1, totalWeeks: actualWeeks)
 
             weeks.append(WeeklyPlan(
                 weekNumber: weekNumber + 1,
                 phase: phase,
                 workouts: workouts,
-                startDate: weekStartDate
+                startDate: weekStartDate,
+                isStepbackWeek: isStepback
             ))
         }
 
-        currentPlan = TrainingPlan(
+        // Use custom name or generate default name
+        let finalName = planName.trimmingCharacters(in: .whitespaces).isEmpty
+            ? "\(selectedDistance.rawValue) - \(selectedRaceDate.formatted(date: .abbreviated, time: .omitted))"
+            : planName.trimmingCharacters(in: .whitespaces)
+
+        let newPlan = TrainingPlan(
+            name: finalName,
             raceDistance: selectedDistance,
             raceDate: selectedRaceDate,
             goalTimeInSeconds: goalTime,
@@ -91,6 +115,17 @@ class TrainingPlanViewModel: ObservableObject {
             vdot: vdot,
             allowRecoveryAdjustments: allowRecoveryAdjustments
         )
+
+        // If editing existing plan, replace it
+        if let currentPlan = currentPlan,
+           let index = trainingPlans.firstIndex(where: { $0.id == currentPlan.id }) {
+            trainingPlans[index] = newPlan
+            self.currentPlan = newPlan
+        } else {
+            // Add new plan
+            trainingPlans.append(newPlan)
+            currentPlan = newPlan
+        }
 
         isCreatingPlan = false
     }
@@ -116,21 +151,38 @@ class TrainingPlanViewModel: ObservableObject {
         totalWeeks: Int,
         phase: TrainingPhase
     ) -> Double {
+        // Determine if this is a stepback week (every 3rd week)
+        let isStepbackWeek = (weekNumber % 3 == 0) && weekNumber < (totalWeeks - 2)
+
         // Build up from min to max over first 75% of plan, then taper
         let buildWeeks = Int(Double(totalWeeks) * 0.75)
         let taperWeeks = totalWeeks - buildWeeks
+
+        var baseMileage: Double
 
         if weekNumber < buildWeeks {
             // Progressive build
             let progress = Double(weekNumber) / Double(buildWeeks)
             let mileageRange = maxWeeklyMileage - minWeeklyMileage
-            return minWeeklyMileage + (mileageRange * progress)
+            baseMileage = minWeeklyMileage + (mileageRange * progress)
         } else {
             // Taper phase
             let weeksIntoTaper = weekNumber - buildWeeks
             let taperProgress = Double(weeksIntoTaper) / Double(taperWeeks)
-            return maxWeeklyMileage * (1.0 - (taperProgress * 0.4))  // 40% reduction
+            baseMileage = maxWeeklyMileage * (1.0 - (taperProgress * 0.4))  // 40% reduction
         }
+
+        // Apply stepback reduction: 20-25% reduction on stepback weeks
+        if isStepbackWeek {
+            return baseMileage * 0.75
+        }
+
+        return baseMileage
+    }
+
+    private func isStepbackWeek(weekNumber: Int, totalWeeks: Int) -> Bool {
+        // Every 3rd week is a stepback, except during final taper (last 2 weeks)
+        return (weekNumber % 3 == 0) && weekNumber < (totalWeeks - 2)
     }
 
     // MARK: - Workout Generation
@@ -139,186 +191,367 @@ class TrainingPlanViewModel: ObservableObject {
         weekNumber: Int,
         phase: TrainingPhase,
         targetMileage: Double,
-        vdot: Double,
+        goalMarathonPaceSecPerMile: Double,
         raceDistance: RaceDistance,
         weekStartDate: Date
     ) -> [DailyWorkout] {
         var workouts: [DailyWorkout] = []
 
-        // Jack Daniels: 3 quality days per week + easy running
-        let longRunDistance = calculateLongRunDistance(targetMileage: targetMileage, phase: phase)
+        let isStepback = isStepbackWeek(weekNumber: weekNumber, totalWeeks: 16)
+        let longRunDistance = calculateLongRunDistance(targetMileage: targetMileage, phase: phase, isStepback: isStepback)
 
-        // Sunday: Long Run (always present except taper week)
-        let isLastWeek = (targetMileage < maxWeeklyMileage * 0.7)
-        if !isLastWeek {
-            workouts.append(createWorkout(
-                date: addDays(to: weekStartDate, days: 0),
-                type: .long,
-                distance: longRunDistance,
-                vdot: vdot,
-                description: "Long run at easy pace"
-            ))
-        } else {
-            workouts.append(createWorkout(
-                date: addDays(to: weekStartDate, days: 0),
-                type: .easy,
-                distance: 4,
-                vdot: vdot,
-                description: "Easy recovery run"
-            ))
-        }
+        // Consistent weekly structure inspired by Bandit Running and Hal Higdon
+        // Sunday (day 0): Long Run
+        let longRunDescription = generateLongRunDescription(
+            phase: phase,
+            weekNumber: weekNumber,
+            distance: longRunDistance,
+            raceDistance: raceDistance,
+            isStepback: isStepback
+        )
+        workouts.append(createWorkout(
+            date: addDays(to: weekStartDate, days: 0),
+            type: .long,
+            distance: longRunDistance,
+            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+            description: longRunDescription
+        ))
 
-        // Monday: Rest or Easy
+        // Monday (day 1): Easy run with strides/accelerations
+        let mondayDistance = isStepback ? 4.0 : min(6.0, targetMileage * 0.12)
         workouts.append(createWorkout(
             date: addDays(to: weekStartDate, days: 1),
+            type: .easy,
+            distance: mondayDistance,
+            durationMinutes: Int(mondayDistance * 9.5),  // ~9.5 min/mile average
+            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+            description: phase == .foundation ? "Easy run" : "Easy run + 6 × 100m strides"
+        ))
+
+        // Tuesday (day 2): Quality workout #1
+        let tuesdayWorkout = generateTuesdayQuality(
+            phase: phase,
+            weekNumber: weekNumber,
+            weekStartDate: weekStartDate,
+            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+            raceDistance: raceDistance,
+            isStepback: isStepback
+        )
+        workouts.append(tuesdayWorkout)
+
+        // Wednesday (day 3): Easy recovery run
+        let wednesdayDistance = isStepback ? 4.0 : min(6.0, targetMileage * 0.10)
+        workouts.append(createWorkout(
+            date: addDays(to: weekStartDate, days: 3),
+            type: .easy,
+            distance: wednesdayDistance,
+            durationMinutes: Int(wednesdayDistance * 9.5),
+            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+            description: "Easy recovery run"
+        ))
+
+        // Thursday (day 4): Quality workout #2 or easy
+        let thursdayWorkout = generateThursdayQuality(
+            phase: phase,
+            weekNumber: weekNumber,
+            weekStartDate: weekStartDate,
+            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+            raceDistance: raceDistance,
+            isStepback: isStepback
+        )
+        workouts.append(thursdayWorkout)
+
+        // Friday (day 5): Rest day
+        workouts.append(createWorkout(
+            date: addDays(to: weekStartDate, days: 5),
             type: .rest,
             distance: nil,
-            vdot: vdot,
+            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
             description: "Rest day"
         ))
 
-        // Generate quality workouts based on phase
-        let qualityWorkouts = generatePhaseSpecificQuality(
+        // Saturday (day 6): Easy or race pace run
+        let saturdayDistance = calculateSaturdayDistance(
+            targetMileage: targetMileage,
+            currentMileage: workouts.compactMap { $0.distanceInMiles }.reduce(0, +),
+            isStepback: isStepback
+        )
+        let saturdayWorkout = generateSaturdayWorkout(
             phase: phase,
+            weekNumber: weekNumber,
+            distance: saturdayDistance,
             weekStartDate: weekStartDate,
-            vdot: vdot,
+            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
             raceDistance: raceDistance
         )
-        workouts.append(contentsOf: qualityWorkouts)
-
-        // Fill remaining days with easy runs
-        let currentMileage = workouts.compactMap { $0.distanceInMiles }.reduce(0, +)
-        let remainingMileage = max(0, targetMileage - currentMileage)
-        let easyDays = 7 - workouts.count
-        let easyMileagePerDay = easyDays > 0 ? remainingMileage / Double(easyDays) : 0
-
-        var usedDays = Set(workouts.map { Calendar.current.component(.weekday, from: $0.date) })
-        for day in 1..<7 {
-            let weekday = (day + 1) % 7 + 1  // Convert to Calendar weekday (1 = Sunday)
-            if !usedDays.contains(weekday) {
-                workouts.append(createWorkout(
-                    date: addDays(to: weekStartDate, days: day),
-                    type: .easy,
-                    distance: max(3, min(8, easyMileagePerDay)),
-                    vdot: vdot,
-                    description: "Easy run"
-                ))
-            }
-        }
+        workouts.append(saturdayWorkout)
 
         return workouts.sorted { $0.date < $1.date }
     }
 
-    private func generatePhaseSpecificQuality(
+    private func calculateSaturdayDistance(targetMileage: Double, currentMileage: Double, isStepback: Bool) -> Double {
+        let remaining = max(0, targetMileage - currentMileage)
+        return max(4, min(8, remaining))
+    }
+
+    // MARK: - Day-Specific Quality Workouts
+
+    private func generateTuesdayQuality(
         phase: TrainingPhase,
+        weekNumber: Int,
         weekStartDate: Date,
-        vdot: Double,
-        raceDistance: RaceDistance
-    ) -> [DailyWorkout] {
-        var workouts: [DailyWorkout] = []
+        goalMarathonPaceSecPerMile: Double,
+        raceDistance: RaceDistance,
+        isStepback: Bool
+    ) -> DailyWorkout {
+        // On stepback weeks, reduce intensity
+        if isStepback {
+            return createWorkout(
+                date: addDays(to: weekStartDate, days: 2),
+                type: .easy,
+                distance: 5,
+                durationMinutes: 50,
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                description: "Easy run"
+            )
+        }
 
         switch phase {
         case .foundation:
-            // Foundation: Light strides, no heavy quality
-            workouts.append(createWorkout(
-                date: addDays(to: weekStartDate, days: 3),  // Wednesday
-                type: .easy,
+            // Foundation phase: tempo runs or fartlek
+            return createWorkout(
+                date: addDays(to: weekStartDate, days: 2),
+                type: .threshold,
                 distance: 6,
-                vdot: vdot,
-                description: "Easy run + 4-6 strides"
-            ))
+                durationMinutes: 50,
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                description: "20 min @ T pace (tempo)"
+            )
 
         case .earlyQuality:
-            // Early Quality: Long run + 2 Repetition workouts
-            workouts.append(createWorkout(
-                date: addDays(to: weekStartDate, days: 2),  // Tuesday
+            // Early quality: Repetition work (400m repeats)
+            let reps = min(12, 8 + (weekNumber / 2))
+            return createWorkout(
+                date: addDays(to: weekStartDate, days: 2),
                 type: .repetition,
-                distance: 6,
-                vdot: vdot,
-                description: "6 x 400m @ R pace, equal rest"
-            ))
-            workouts.append(createWorkout(
-                date: addDays(to: weekStartDate, days: 5),  // Friday
-                type: .repetition,
-                distance: 5,
-                vdot: vdot,
-                description: "8 x 200m @ R pace, 200m jog recovery"
-            ))
+                distance: 7,
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                description: "\(reps) × 400m @ R pace, 90 sec rest"
+            )
 
         case .transitionQuality:
-            // Transition: Threshold + Interval work
-            workouts.append(createWorkout(
-                date: addDays(to: weekStartDate, days: 2),  // Tuesday
+            // Transition: Interval work (800m-1000m)
+            return createWorkout(
+                date: addDays(to: weekStartDate, days: 2),
                 type: .interval,
-                distance: 7,
-                vdot: vdot,
-                description: "5 x 1000m @ I pace, equal rest"
-            ))
-            workouts.append(createWorkout(
-                date: addDays(to: weekStartDate, days: 4),  // Thursday
-                type: .threshold,
                 distance: 8,
-                vdot: vdot,
-                description: "20 min @ T pace"
-            ))
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                description: "6 × 1000m @ I pace, equal jog rest"
+            )
 
         case .finalQuality:
-            // Final Quality: Race-specific workouts
+            // Final quality: Race-specific work
             if raceDistance == .marathon {
-                workouts.append(createWorkout(
-                    date: addDays(to: weekStartDate, days: 2),  // Tuesday
-                    type: .threshold,
-                    distance: 9,
-                    vdot: vdot,
-                    description: "2 x 15 min @ T pace, 2 min rest"
-                ))
-                workouts.append(createWorkout(
-                    date: addDays(to: weekStartDate, days: 4),  // Thursday
+                return createWorkout(
+                    date: addDays(to: weekStartDate, days: 2),
                     type: .marathon,
                     distance: 10,
-                    vdot: vdot,
-                    description: "8 miles @ M pace"
-                ))
+                    goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                    description: "2 miles E, 6 miles @ M pace, 2 miles E"
+                )
             } else {
-                workouts.append(createWorkout(
-                    date: addDays(to: weekStartDate, days: 2),  // Tuesday
+                return createWorkout(
+                    date: addDays(to: weekStartDate, days: 2),
                     type: .interval,
-                    distance: 7,
-                    vdot: vdot,
-                    description: "6 x 800m @ I pace, 2 min rest"
-                ))
-                workouts.append(createWorkout(
-                    date: addDays(to: weekStartDate, days: 4),  // Thursday
-                    type: .threshold,
-                    distance: 7,
-                    vdot: vdot,
-                    description: "25 min @ T pace"
-                ))
+                    distance: 8,
+                    goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                    description: "5 × 1 mile @ I pace, 2 min rest"
+                )
             }
         }
-
-        return workouts
     }
 
-    private func calculateLongRunDistance(targetMileage: Double, phase: TrainingPhase) -> Double {
+    private func generateThursdayQuality(
+        phase: TrainingPhase,
+        weekNumber: Int,
+        weekStartDate: Date,
+        goalMarathonPaceSecPerMile: Double,
+        raceDistance: RaceDistance,
+        isStepback: Bool
+    ) -> DailyWorkout {
+        // On stepback weeks, easy run instead of quality
+        if isStepback {
+            return createWorkout(
+                date: addDays(to: weekStartDate, days: 4),
+                type: .easy,
+                distance: 5,
+                durationMinutes: 50,
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                description: "Easy run"
+            )
+        }
+
+        // Every 3rd week that's not a stepback: hill repeats
+        // Otherwise: tempo/threshold work
+        if weekNumber % 3 == 1 {
+            let hillCount = min(10, 6 + (weekNumber / 3))
+            return createWorkout(
+                date: addDays(to: weekStartDate, days: 4),
+                type: .hill,
+                distance: 7,
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                description: "\(hillCount) × 300m hills, jog down recovery"
+            )
+        }
+
+        switch phase {
+        case .foundation:
+            return createWorkout(
+                date: addDays(to: weekStartDate, days: 4),
+                type: .easy,
+                distance: 6,
+                durationMinutes: 55,
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                description: "Easy run + 6 × 100m strides"
+            )
+
+        case .earlyQuality:
+            return createWorkout(
+                date: addDays(to: weekStartDate, days: 4),
+                type: .threshold,
+                distance: 7,
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                description: "2 × 2 miles @ T pace, 1 min rest (cruise intervals)"
+            )
+
+        case .transitionQuality:
+            return createWorkout(
+                date: addDays(to: weekStartDate, days: 4),
+                type: .threshold,
+                distance: 8,
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                description: "3 × 1.5 miles @ T pace, 1 min rest"
+            )
+
+        case .finalQuality:
+            return createWorkout(
+                date: addDays(to: weekStartDate, days: 4),
+                type: .threshold,
+                distance: 8,
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                description: "30 min continuous @ T pace"
+            )
+        }
+    }
+
+    private func generateSaturdayWorkout(
+        phase: TrainingPhase,
+        weekNumber: Int,
+        distance: Double,
+        weekStartDate: Date,
+        goalMarathonPaceSecPerMile: Double,
+        raceDistance: RaceDistance
+    ) -> DailyWorkout {
+        // Saturday workouts transition from easy to race pace as training progresses
+        if phase == .finalQuality && raceDistance == .marathon && weekNumber >= 12 {
+            return createWorkout(
+                date: addDays(to: weekStartDate, days: 6),
+                type: .racePace,
+                distance: distance,
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                description: "\(Int(distance)) miles @ goal marathon pace"
+            )
+        } else {
+            return createWorkout(
+                date: addDays(to: weekStartDate, days: 6),
+                type: .easy,
+                distance: distance,
+                durationMinutes: Int(distance * 9.5),
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                description: "Easy run"
+            )
+        }
+    }
+
+    private func calculateLongRunDistance(targetMileage: Double, phase: TrainingPhase, isStepback: Bool) -> Double {
         // Long run should be 25-30% of weekly mileage
         let percentage: Double = phase == .foundation ? 0.25 : 0.30
-        return min(20, targetMileage * percentage)  // Cap at 20 miles
+        var distance = min(20, targetMileage * percentage)  // Cap at 20 miles
+
+        // Reduce long run on stepback weeks
+        if isStepback {
+            distance *= 0.75
+        }
+
+        return max(8, distance)  // Minimum 8 miles
+    }
+
+    private func generateLongRunDescription(
+        phase: TrainingPhase,
+        weekNumber: Int,
+        distance: Double,
+        raceDistance: RaceDistance,
+        isStepback: Bool
+    ) -> String {
+        let miles = Int(distance)
+
+        // Stepback weeks: just easy running
+        if isStepback {
+            return "\(miles) miles easy"
+        }
+
+        switch phase {
+        case .foundation:
+            // Foundation: all easy
+            return "\(miles) miles easy"
+
+        case .earlyQuality:
+            // Early quality: introduce light pace work in later weeks
+            if weekNumber >= 6 && miles >= 12 {
+                return "\(miles) miles: last 2 miles @ M pace"
+            }
+            return "\(miles) miles easy"
+
+        case .transitionQuality:
+            // Transition: structured M pace segments (Bandit/Higdon style)
+            if raceDistance == .marathon && miles >= 14 {
+                let segment1 = min(4, Int(Double(miles) * 0.30))
+                let segment2 = min(3, Int(Double(miles) * 0.20))
+                return "\(miles) miles: \(miles - segment1 - segment2 - 2) easy + \(segment1) @ M + 1 easy + \(segment2) @ M + 1 easy"
+            } else if miles >= 12 {
+                return "\(miles) miles: last 3 miles @ M pace"
+            }
+            return "\(miles) miles easy"
+
+        case .finalQuality:
+            // Final quality: longer M pace segments
+            if raceDistance == .marathon && miles >= 14 {
+                let segment1 = min(6, Int(Double(miles) * 0.40))
+                let segment2 = min(4, Int(Double(miles) * 0.25))
+                return "\(miles) miles: \(miles - segment1 - segment2 - 2) easy + \(segment1) @ M + 1 easy + \(segment2) @ M + 1 easy"
+            } else if miles >= 10 {
+                let mpaceMiles = Int(Double(miles) * 0.40)
+                return "\(miles) miles: \(miles - mpaceMiles) easy + \(mpaceMiles) @ M pace"
+            }
+            return "\(miles) miles easy"
+        }
     }
 
     private func createWorkout(
         date: Date,
-        type: WorkoutType,
+        type: TrainingWorkoutType,
         distance: Double?,
-        vdot: Double,
+        durationMinutes: Int? = nil,
+        goalMarathonPaceSecPerMile: Double,
         description: String
     ) -> DailyWorkout {
-        let pace = type == .rest ? nil : VDOTCalculator.paceForWorkoutType(type, vdot: vdot)
+        let pace = type == .rest ? nil : VDOTCalculator.paceForWorkoutType(type, goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile)
 
         return DailyWorkout(
             date: date,
             type: type,
             distanceInMiles: distance,
+            durationInMinutes: durationMinutes,
             paceMinPerMile: pace,
             description: description
         )
@@ -352,5 +585,251 @@ class TrainingPlanViewModel: ObservableObject {
         currentPlan = nil
         adjustmentSuggestion = nil
         lastRecoveryScore = nil
+    }
+
+    func deletePlan(_ plan: TrainingPlan) {
+        trainingPlans.removeAll { $0.id == plan.id }
+        if currentPlan?.id == plan.id {
+            currentPlan = trainingPlans.first
+        }
+    }
+
+    func selectPlan(_ plan: TrainingPlan) {
+        currentPlan = plan
+    }
+
+    // MARK: - Workout Linking
+
+    func linkWorkoutToDay(workoutId: UUID, healthKitWorkout: WorkoutData) {
+        guard var plan = currentPlan else { return }
+
+        // Find the workout day
+        var updatedWeeks = plan.weeks
+        for (weekIndex, week) in updatedWeeks.enumerated() {
+            for (workoutIndex, workout) in week.workouts.enumerated() {
+                if workout.id == workoutId {
+                    // Calculate actual pace
+                    let distanceMiles = healthKitWorkout.distance! / 1609.34
+                    let paceSecPerMile = healthKitWorkout.duration / distanceMiles
+                    let paceMin = Int(paceSecPerMile / 60)
+                    let paceSec = Int(paceSecPerMile.truncatingRemainder(dividingBy: 60))
+                    let paceString = String(format: "%d:%02d", paceMin, paceSec)
+
+                    let linkedWorkout = LinkedWorkout(
+                        id: UUID(),
+                        workoutId: healthKitWorkout.id.uuidString,
+                        actualDistance: distanceMiles,
+                        actualDuration: healthKitWorkout.duration,
+                        actualPace: paceString,
+                        completedDate: healthKitWorkout.date
+                    )
+
+                    // Create updated workout
+                    let updatedWorkout = DailyWorkout(
+                        id: workout.id,
+                        date: workout.date,
+                        type: workout.type,
+                        distanceInMiles: workout.distanceInMiles,
+                        durationInMinutes: workout.durationInMinutes,
+                        paceMinPerMile: workout.paceMinPerMile,
+                        description: workout.description,
+                        isCompleted: true,
+                        linkedWorkout: linkedWorkout
+                    )
+
+                    // Update the workout in the week
+                    var updatedWorkouts = week.workouts
+                    updatedWorkouts[workoutIndex] = updatedWorkout
+
+                    // Update the week
+                    updatedWeeks[weekIndex] = WeeklyPlan(
+                        id: week.id,
+                        weekNumber: week.weekNumber,
+                        phase: week.phase,
+                        workouts: updatedWorkouts,
+                        startDate: week.startDate,
+                        isStepbackWeek: week.isStepbackWeek
+                    )
+
+                    // Update the plan
+                    let updatedPlan = TrainingPlan(
+                        id: plan.id,
+                        name: plan.name,
+                        raceDistance: plan.raceDistance,
+                        raceDate: plan.raceDate,
+                        goalTimeInSeconds: plan.goalTimeInSeconds,
+                        minWeeklyMileage: plan.minWeeklyMileage,
+                        maxWeeklyMileage: plan.maxWeeklyMileage,
+                        weeks: updatedWeeks,
+                        vdot: plan.vdot,
+                        allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
+                        createdDate: plan.createdDate
+                    )
+
+                    // Update in both currentPlan and trainingPlans array
+                    currentPlan = updatedPlan
+                    if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
+                        trainingPlans[planIndex] = updatedPlan
+                    }
+                    return
+                }
+            }
+        }
+    }
+
+    func unlinkWorkoutFromDay(workoutId: UUID) {
+        guard var plan = currentPlan else { return }
+
+        var updatedWeeks = plan.weeks
+        for (weekIndex, week) in updatedWeeks.enumerated() {
+            for (workoutIndex, workout) in week.workouts.enumerated() {
+                if workout.id == workoutId {
+                    // Create updated workout without link
+                    let updatedWorkout = DailyWorkout(
+                        id: workout.id,
+                        date: workout.date,
+                        type: workout.type,
+                        distanceInMiles: workout.distanceInMiles,
+                        durationInMinutes: workout.durationInMinutes,
+                        paceMinPerMile: workout.paceMinPerMile,
+                        description: workout.description,
+                        isCompleted: false,
+                        linkedWorkout: nil
+                    )
+
+                    var updatedWorkouts = week.workouts
+                    updatedWorkouts[workoutIndex] = updatedWorkout
+
+                    updatedWeeks[weekIndex] = WeeklyPlan(
+                        id: week.id,
+                        weekNumber: week.weekNumber,
+                        phase: week.phase,
+                        workouts: updatedWorkouts,
+                        startDate: week.startDate,
+                        isStepbackWeek: week.isStepbackWeek
+                    )
+
+                    let updatedPlan = TrainingPlan(
+                        id: plan.id,
+                        name: plan.name,
+                        raceDistance: plan.raceDistance,
+                        raceDate: plan.raceDate,
+                        goalTimeInSeconds: plan.goalTimeInSeconds,
+                        minWeeklyMileage: plan.minWeeklyMileage,
+                        maxWeeklyMileage: plan.maxWeeklyMileage,
+                        weeks: updatedWeeks,
+                        vdot: plan.vdot,
+                        allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
+                        createdDate: plan.createdDate
+                    )
+
+                    // Update in both currentPlan and trainingPlans array
+                    currentPlan = updatedPlan
+                    if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
+                        trainingPlans[planIndex] = updatedPlan
+                    }
+                    return
+                }
+            }
+        }
+    }
+
+    // MARK: - Workout Day Editing
+
+    func moveWorkout(from workoutId: UUID, toDay newDate: Date) {
+        guard var plan = currentPlan else { return }
+
+        var updatedWeeks = plan.weeks
+        for (weekIndex, week) in updatedWeeks.enumerated() {
+            for (workoutIndex, workout) in week.workouts.enumerated() {
+                if workout.id == workoutId {
+                    // Create updated workout with new date
+                    let updatedWorkout = DailyWorkout(
+                        id: workout.id,
+                        date: newDate,
+                        type: workout.type,
+                        distanceInMiles: workout.distanceInMiles,
+                        durationInMinutes: workout.durationInMinutes,
+                        paceMinPerMile: workout.paceMinPerMile,
+                        description: workout.description,
+                        isCompleted: workout.isCompleted,
+                        linkedWorkout: workout.linkedWorkout
+                    )
+
+                    var updatedWorkouts = week.workouts
+                    updatedWorkouts[workoutIndex] = updatedWorkout
+
+                    updatedWeeks[weekIndex] = WeeklyPlan(
+                        id: week.id,
+                        weekNumber: week.weekNumber,
+                        phase: week.phase,
+                        workouts: updatedWorkouts.sorted { $0.date < $1.date },
+                        startDate: week.startDate,
+                        isStepbackWeek: week.isStepbackWeek
+                    )
+
+                    let updatedPlan = TrainingPlan(
+                        id: plan.id,
+                        name: plan.name,
+                        raceDistance: plan.raceDistance,
+                        raceDate: plan.raceDate,
+                        goalTimeInSeconds: plan.goalTimeInSeconds,
+                        minWeeklyMileage: plan.minWeeklyMileage,
+                        maxWeeklyMileage: plan.maxWeeklyMileage,
+                        weeks: updatedWeeks,
+                        vdot: plan.vdot,
+                        allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
+                        createdDate: plan.createdDate
+                    )
+
+                    // Update in both currentPlan and trainingPlans array
+                    currentPlan = updatedPlan
+                    if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
+                        trainingPlans[planIndex] = updatedPlan
+                    }
+                    return
+                }
+            }
+        }
+    }
+
+    // MARK: - Persistence
+
+    private func savePlans() {
+        // Don't save while loading to avoid re-saving the same data
+        guard !isLoadingPlans else { return }
+
+        do {
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let data = try encoder.encode(trainingPlans)
+            UserDefaults.standard.set(data, forKey: userDefaultsKey)
+            print("💾 Training plans saved to storage (\(trainingPlans.count) plans)")
+        } catch {
+            print("❌ Failed to save training plans: \(error)")
+        }
+    }
+
+    private func loadPlans() {
+        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
+            print("📭 No saved training plans found")
+            return
+        }
+
+        do {
+            isLoadingPlans = true
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let plans = try decoder.decode([TrainingPlan].self, from: data)
+            trainingPlans = plans
+            currentPlan = plans.first  // Set most recent plan as current
+            isLoadingPlans = false
+            print("📂 Training plans loaded from storage (\(plans.count) plans)")
+        } catch {
+            isLoadingPlans = false
+            print("❌ Failed to load training plans: \(error)")
+            // Clean up corrupted data
+            UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+        }
     }
 }

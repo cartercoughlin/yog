@@ -3,10 +3,24 @@ import SwiftUI
 struct TrainingPlanSetupView: View {
     @ObservedObject var viewModel: TrainingPlanViewModel
     @Environment(\.dismiss) var dismiss
+    @State private var showDeleteConfirmation = false
+
+    private var isEditing: Bool {
+        viewModel.currentPlan != nil
+    }
 
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    TextField("Plan Name (optional)", text: $viewModel.planName)
+                        .textInputAutocapitalization(.words)
+                } header: {
+                    Text("Plan Information")
+                } footer: {
+                    Text("Give your training plan a custom name, or leave blank for auto-generated name")
+                }
+
                 Section {
                     Picker("Race Distance", selection: $viewModel.selectedDistance) {
                         ForEach(RaceDistance.allCases) { distance in
@@ -114,7 +128,7 @@ struct TrainingPlanSetupView: View {
 
                         InfoRow(
                             title: "Philosophy",
-                            value: "Jack Daniels' Running Formula"
+                            value: "VDOT-Based Training"
                         )
 
                         InfoRow(
@@ -125,8 +139,24 @@ struct TrainingPlanSetupView: View {
                 } header: {
                     Text("Plan Overview")
                 }
+
+                if isEditing {
+                    Section {
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Delete Training Plan")
+                                Spacer()
+                            }
+                        }
+                    } footer: {
+                        Text("This will permanently delete your current training plan and all linked workouts")
+                    }
+                }
             }
-            .navigationTitle("Create Training Plan")
+            .navigationTitle(isEditing ? "Edit Training Plan" : "Create Training Plan")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -136,14 +166,48 @@ struct TrainingPlanSetupView: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Generate") {
+                    Button(isEditing ? "Update" : "Generate") {
                         viewModel.generatePlan()
                         dismiss()
                     }
                     .disabled(!isValid)
                 }
             }
+            .alert("Delete Training Plan?", isPresented: $showDeleteConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    viewModel.resetPlan()
+                    dismiss()
+                }
+            } message: {
+                Text("This will permanently delete your training plan and all linked workouts. This action cannot be undone.")
+            }
+            .onAppear {
+                loadExistingPlanData()
+            }
         }
+    }
+
+    private func loadExistingPlanData() {
+        guard let plan = viewModel.currentPlan else {
+            // Clear name field when creating new plan
+            viewModel.planName = ""
+            return
+        }
+
+        // Populate form with existing plan data
+        viewModel.planName = plan.name
+        viewModel.selectedDistance = plan.raceDistance
+        viewModel.selectedRaceDate = plan.raceDate
+        viewModel.minWeeklyMileage = plan.minWeeklyMileage
+        viewModel.maxWeeklyMileage = plan.maxWeeklyMileage
+        viewModel.allowRecoveryAdjustments = plan.allowRecoveryAdjustments
+
+        // Convert goal time back to hours/minutes/seconds
+        let totalSeconds = Int(plan.goalTimeInSeconds)
+        viewModel.goalHours = totalSeconds / 3600
+        viewModel.goalMinutes = (totalSeconds % 3600) / 60
+        viewModel.goalSeconds = totalSeconds % 60
     }
 
     private var isValid: Bool {

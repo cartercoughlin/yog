@@ -229,16 +229,19 @@ struct MetricItem: View {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundStyle(color)
+                .frame(height: 28)
 
             Text(value)
                 .font(.title3)
                 .fontWeight(.semibold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
 
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 120)
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 10)

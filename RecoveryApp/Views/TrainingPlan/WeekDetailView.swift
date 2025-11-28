@@ -3,6 +3,7 @@ import SwiftUI
 struct WeekDetailView: View {
     let week: WeeklyPlan
     let plan: TrainingPlan
+    @ObservedObject var viewModel: TrainingPlanViewModel
 
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -45,7 +46,7 @@ struct WeekDetailView: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 8) {
-                    Text(String(format: "%.1f", week.totalMileage))
+                    Text(String(format: "%.0f", week.totalMileage))
                         .font(.system(size: 36, weight: .bold))
 
                     Text("total miles")
@@ -85,7 +86,7 @@ struct WeekDetailView: View {
     private var trainingPacesCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Training Paces (VDOT \(String(format: "%.1f", plan.vdot)))")
+                Text("Training Paces")
                     .font(.headline)
 
                 Spacer()
@@ -98,7 +99,10 @@ struct WeekDetailView: View {
                 }
             }
 
-            let paces = VDOTCalculator.calculateTrainingPaces(vdot: plan.vdot)
+            // Calculate goal marathon pace from plan data
+            let marathonMiles = plan.raceDistance.meters / 1609.34
+            let goalMarathonPaceSecPerMile = plan.goalTimeInSeconds / marathonMiles
+            let paces = VDOTCalculator.calculateTrainingPacesFromGoal(goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile)
 
             VStack(spacing: 8) {
                 paceRow(type: "Easy (E)", pace: paces.easyMinPerMile, color: .green)
@@ -145,6 +149,7 @@ struct WeekDetailView: View {
 
             ForEach(week.workouts) { workout in
                 WorkoutCard(workout: workout)
+                    .environmentObject(viewModel)
             }
         }
     }
@@ -161,6 +166,15 @@ struct WeekDetailView: View {
 
 struct WorkoutCard: View {
     let workout: DailyWorkout
+    @State private var showLinkSheet = false
+    @State private var showDatePicker = false
+    @State private var newDate: Date
+    @EnvironmentObject private var viewModel: TrainingPlanViewModel
+
+    init(workout: DailyWorkout) {
+        self.workout = workout
+        _newDate = State(initialValue: workout.date)
+    }
 
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -175,78 +189,221 @@ struct WorkoutCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Day indicator
-            VStack(spacing: 4) {
-                Text(dayOfWeekFormatter.string(from: workout.date))
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(workout.type.isQuality ? .white : .secondary)
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                // Day indicator
+                VStack(spacing: 4) {
+                    Text(dayOfWeekFormatter.string(from: workout.date))
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(workout.type.isQuality ? .white : .secondary)
 
-                Circle()
-                    .fill(workoutColor)
-                    .frame(width: 8, height: 8)
+                    Circle()
+                        .fill(workout.isCompleted ? Color.green : workoutColor)
+                        .frame(width: 8, height: 8)
+                }
+                .frame(width: 50)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(workout.type.isQuality ? workoutColor.opacity(0.2) : Color.clear)
+                )
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(workout.type.rawValue)
+                            .font(.headline)
+
+                        if workout.type.isQuality {
+                            Image(systemName: "star.fill")
+                                .font(.caption)
+                                .foregroundStyle(.yellow)
+                        }
+
+                        if workout.isCompleted {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+
+                        Spacer()
+
+                        if let distance = workout.distanceInMiles {
+                            Text(String(format: "%.0f mi", distance))
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                        }
+                    }
+
+                    Text(workout.description)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    if let pace = workout.paceMinPerMile {
+                        HStack(spacing: 4) {
+                            Image(systemName: "speedometer")
+                                .font(.caption)
+                            Text("\(pace) / mile")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(workoutColor)
+                    }
+                }
             }
-            .frame(width: 50)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(workout.type.isQuality ? workoutColor.opacity(0.2) : Color.clear)
-            )
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(workout.type.rawValue)
-                        .font(.headline)
+            // Linked workout display
+            if let linked = workout.linkedWorkout {
+                Divider()
+                    .padding(.vertical, 8)
 
-                    if workout.type.isQuality {
-                        Image(systemName: "star.fill")
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Completed Workout")
                             .font(.caption)
-                            .foregroundStyle(.yellow)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.green)
+
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Distance")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text(linked.formattedDistance)
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                            }
+
+                            Divider().frame(height: 20)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Pace")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text("\(linked.actualPace) / mi")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                            }
+
+                            Divider().frame(height: 20)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Duration")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text(linked.formattedDuration)
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                            }
+                        }
                     }
 
                     Spacer()
-
-                    if let distance = workout.distanceInMiles {
-                        Text(String(format: "%.1f mi", distance))
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                    }
                 }
-
-                Text(workout.description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                if let pace = workout.paceMinPerMile {
-                    HStack(spacing: 4) {
-                        Image(systemName: "speedometer")
+                .padding(.horizontal)
+                .padding(.bottom, 4)
+            } else if !workout.isCompleted {
+                // Link workout button (only for past/present workouts)
+                if workout.date <= Date() {
+                    Button {
+                        showLinkSheet = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "link")
+                                .font(.caption)
+                            Text("Link Workout")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.blue)
+                        .padding(.vertical, 8)
+                    }
+                } else {
+                    // Future workout indicator
+                    HStack {
+                        Image(systemName: "calendar")
                             .font(.caption)
-                        Text("\(pace) / mile")
+                        Text("Scheduled for \(workout.date.formatted(date: .abbreviated, time: .omitted))")
                             .font(.caption)
                     }
-                    .foregroundStyle(workoutColor)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
                 }
             }
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color(.systemBackground))
+                .fill(workout.isCompleted ? Color.green.opacity(0.05) : Color(.systemBackground))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(workout.type.isQuality ? workoutColor.opacity(0.3) : Color.clear, lineWidth: 1)
+                .stroke(
+                    workout.isCompleted ? Color.green.opacity(0.3) :
+                    (workout.type.isQuality ? workoutColor.opacity(0.3) : Color.clear),
+                    lineWidth: 1
+                )
         )
+        .sheet(isPresented: $showLinkSheet) {
+            WorkoutLinkingSheet(workout: workout)
+                .environmentObject(viewModel)
+        }
+        .sheet(isPresented: $showDatePicker) {
+            NavigationStack {
+                VStack(spacing: 20) {
+                    Text("Change Workout Day")
+                        .font(.headline)
+                        .padding(.top)
+
+                    DatePicker(
+                        "Select New Date",
+                        selection: $newDate,
+                        displayedComponents: [.date]
+                    )
+                    .datePickerStyle(.graphical)
+                    .padding()
+
+                    HStack(spacing: 16) {
+                        Button("Cancel") {
+                            showDatePicker = false
+                            newDate = workout.date
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button("Move Workout") {
+                            viewModel.moveWorkout(from: workout.id, toDay: newDate)
+                            showDatePicker = false
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding()
+                }
+                .presentationDetents([.medium])
+            }
+        }
+        .contextMenu {
+            Button {
+                showDatePicker = true
+            } label: {
+                Label("Change Day", systemImage: "calendar")
+            }
+
+            if workout.linkedWorkout != nil {
+                Button(role: .destructive) {
+                    viewModel.unlinkWorkoutFromDay(workoutId: workout.id)
+                } label: {
+                    Label("Unlink Workout", systemImage: "link.badge.minus")
+                }
+            }
+        }
     }
 
     private var workoutColor: Color {
         switch workout.type {
         case .easy, .long: return .green
-        case .marathon: return .blue
+        case .marathon, .racePace: return .blue
         case .threshold: return .orange
         case .interval: return .red
         case .repetition: return .purple
+        case .hill: return .brown
         case .rest: return .gray
         }
     }
@@ -277,6 +434,7 @@ struct WorkoutCard: View {
                 startDate: Date()
             ),
             plan: TrainingPlan(
+                name: "Sample Marathon Plan",
                 raceDistance: .marathon,
                 raceDate: Date().addingTimeInterval(86400 * 120),
                 goalTimeInSeconds: 3 * 3600 + 30 * 60,
@@ -284,7 +442,8 @@ struct WorkoutCard: View {
                 maxWeeklyMileage: 55,
                 weeks: [],
                 vdot: 50
-            )
+            ),
+            viewModel: TrainingPlanViewModel()
         )
     }
 }

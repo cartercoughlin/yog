@@ -22,7 +22,19 @@ class DashboardViewModel: ObservableObject {
     private let recoveryCalculator = RecoveryCalculator()
     private let recommendationEngine = RecommendationEngine()
 
+    // Cache management
+    private var lastLoadTime: Date?
+    private var cacheExpirationInterval: TimeInterval = 300 // 5 minutes
+
     func loadData() async {
+        // Check if we have cached data that's still fresh
+        if let lastLoad = lastLoadTime,
+           todayRecovery != nil,
+           Date().timeIntervalSince(lastLoad) < cacheExpirationInterval {
+            print("📦 Using cached data (loaded \(Int(Date().timeIntervalSince(lastLoad)))s ago)")
+            return
+        }
+
         isLoading = true
         error = nil
 
@@ -61,6 +73,10 @@ class DashboardViewModel: ObservableObject {
             weeklyTrend = trend
             self.historicalMetrics = historicalMetrics
 
+            // Update cache timestamp
+            lastLoadTime = Date()
+            print("✅ Data cached at \(Date())")
+
         } catch {
             self.error = "Failed to load health data: \(error.localizedDescription)"
             print("Error loading data: \(error)")
@@ -70,6 +86,16 @@ class DashboardViewModel: ObservableObject {
     }
 
     func refreshData() async {
+        // Force refresh by clearing cache
+        lastLoadTime = nil
         await loadData()
+    }
+
+    func clearCache() {
+        lastLoadTime = nil
+        todayRecovery = nil
+        recommendation = nil
+        weeklyTrend = nil
+        historicalMetrics = []
     }
 }

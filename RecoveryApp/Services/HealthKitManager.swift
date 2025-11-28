@@ -90,6 +90,25 @@ class HealthKitManager: ObservableObject {
         return metrics
     }
 
+    func fetchMetricsForDateRange(startDate: Date, endDate: Date) async throws -> [HealthMetrics] {
+        let calendar = Calendar.current
+        var metrics: [HealthMetrics] = []
+        var currentDate = calendar.startOfDay(for: startDate)
+        let finalDate = calendar.startOfDay(for: endDate)
+
+        while currentDate <= finalDate {
+            do {
+                let dayMetrics = try await fetchHealthMetrics(for: currentDate)
+                metrics.append(dayMetrics)
+            } catch {
+                print("Error fetching metrics for \(currentDate): \(error)")
+            }
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
+        }
+
+        return metrics
+    }
+
     private func fetchHRV(for date: Date) async throws -> Double? {
         let hrvType = HKQuantityType(.heartRateVariabilitySDNN)
         let predicate = predicateForDay(date)

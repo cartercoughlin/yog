@@ -11,6 +11,22 @@ import Combine
 
 @MainActor
 class HistoryViewModel: ObservableObject {
+    enum TimeRange: String, CaseIterable {
+        case week = "Week"
+        case month = "Month"
+        case threeMonths = "3 Months"
+        case year = "Year"
+
+        var days: Int {
+            switch self {
+            case .week: return 7
+            case .month: return 30
+            case .threeMonths: return 90
+            case .year: return 365
+            }
+        }
+    }
+
     @Published var recoveryHistory: [RecoveryData] = []
     @Published var workoutHistory: [WorkoutData] = []
     @Published var isLoading = false

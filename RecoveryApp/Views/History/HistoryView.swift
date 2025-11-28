@@ -165,16 +165,19 @@ struct StatCard: View {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundStyle(color)
+                .frame(height: 28)
 
             Text(value)
                 .font(.title2)
                 .fontWeight(.bold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
 
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 120)
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)

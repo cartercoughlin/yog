@@ -14,6 +14,21 @@ struct BodyDiagramView: View {
                     .foregroundStyle(.secondary)
                     .padding(.top)
 
+                // Selected Region Indicator
+                if let selected = selectedRegion {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Selected: \(selected.rawValue)")
+                            .font(.headline)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(10)
+                    .padding(.horizontal)
+                }
+
                 // Front View
                 VStack(spacing: 10) {
                     Text("Front View")
@@ -435,7 +450,7 @@ struct BodyDiagramView: View {
                     .frame(width: width, height: height)
                     .overlay(
                         shape
-                            .stroke(strokeColor(for: region), lineWidth: 2)
+                            .stroke(strokeColor(for: region), lineWidth: selectedRegion == region ? 4 : 2)
                             .frame(width: width, height: height)
                     )
 
@@ -444,6 +459,13 @@ struct BodyDiagramView: View {
                         .font(.caption)
                         .foregroundStyle(.white)
                 }
+
+                // Add checkmark for selected region
+                if selectedRegion == region && !hasInjury {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                }
             }
         }
         .position(x: x, y: y)
@@ -451,14 +473,21 @@ struct BodyDiagramView: View {
     }
 
     private func fillColor(for region: BodyRegion, hasInjury: Bool, severity: InjurySeverity?) -> Color {
+        if selectedRegion == region {
+            // Selected region gets bright green highlight
+            return Color.green.opacity(0.5)
+        }
         if hasInjury, let severity = severity {
             return severity.color.opacity(0.7)
         }
-        return selectedRegion == region ? Color.blue.opacity(0.3) : Color.blue.opacity(0.15)
+        return Color.blue.opacity(0.15)
     }
 
     private func strokeColor(for region: BodyRegion) -> Color {
-        selectedRegion == region ? .blue : .gray.opacity(0.5)
+        if selectedRegion == region {
+            return .green
+        }
+        return .gray.opacity(0.5)
     }
 }
 

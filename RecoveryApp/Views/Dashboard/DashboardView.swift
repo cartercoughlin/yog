@@ -35,6 +35,10 @@ struct DashboardView: View {
                         }
                         .padding(.horizontal)
 
+                        if !viewModel.injuryViewModel.activeInjuries.isEmpty {
+                            InjuryWarningCard(injuryViewModel: viewModel.injuryViewModel)
+                        }
+
                         if let trend = viewModel.weeklyTrend {
                             WeeklyTrendCard(
                                 average: trend.average,
@@ -247,6 +251,12 @@ struct MetricItem: View {
             RoundedRectangle(cornerRadius: 10)
                 .fill(Color(.systemBackground))
         )
+        .overlay(alignment: .topTrailing) {
+            Image(systemName: "chevron.right")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .padding(8)
+        }
     }
 }
 
@@ -338,6 +348,95 @@ struct EmptyStateView: View {
                 .padding(.horizontal)
         }
         .padding(.top, 100)
+    }
+}
+
+struct InjuryWarningCard: View {
+    @ObservedObject var injuryViewModel: InjuryViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "bandage.fill")
+                    .foregroundStyle(.orange)
+                    .font(.title2)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Active Injuries")
+                        .font(.headline)
+                    Text(injuryViewModel.injurySummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if injuryViewModel.totalRecoveryImpact > 0 {
+                    VStack(alignment: .trailing) {
+                        Text("-\(Int(injuryViewModel.totalRecoveryImpact))")
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.red)
+                        Text("score impact")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(injuryViewModel.activeInjuries.prefix(3))) { injury in
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(severityColor(injury.severity))
+                            .frame(width: 8, height: 8)
+
+                        Text(injury.location.displayName)
+                            .font(.subheadline)
+
+                        Text("•")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Text(injury.painType.displayName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Text("\(injury.severity.numericValue)/10")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(severityColor(injury.severity))
+                    }
+                }
+
+                if injuryViewModel.activeInjuries.count > 3 {
+                    Text("+\(injuryViewModel.activeInjuries.count - 3) more")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 16)
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .padding(.horizontal)
+    }
+
+    private func severityColor(_ severity: PainSeverity) -> Color {
+        switch severity.color {
+        case "yellow": return .yellow
+        case "orange": return .orange
+        case "red": return .red
+        case "purple": return .purple
+        default: return .gray
+        }
     }
 }
 

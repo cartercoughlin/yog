@@ -148,7 +148,7 @@ struct InjuryDetailView: View {
                 Button {
                     showExerciseDetail = exercise
                 } label: {
-                    ExerciseCard(
+                    RehabExerciseCard(
                         exercise: exercise,
                         rating: injury.ratingForExercise(exercise.id)
                     )
@@ -228,7 +228,7 @@ struct InjuryDetailView: View {
     }
 }
 
-struct ExerciseCard: View {
+struct RehabExerciseCard: View {
     let exercise: RehabExercise
     let rating: ExerciseRating?
 

@@ -13,27 +13,6 @@ struct InjuryTrackerView: View {
                     // Summary Card
                     summaryCard
 
-                    // Body Diagram Button
-                    Button {
-                        showBodyDiagram = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "figure.stand")
-                                .font(.title2)
-                            Text("View Body Diagram")
-                                .font(.headline)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                        }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.blue.opacity(0.1))
-                        )
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .padding(.horizontal)
-
                     // Active Injuries
                     if !viewModel.activeInjuries.isEmpty {
                         activeInjuriesSection

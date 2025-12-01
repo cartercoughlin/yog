@@ -25,6 +25,60 @@ class HealthKitManager: ObservableObject {
         HKQuantityType(.respiratoryRate)
     ]
 
+    init() {
+        // Check authorization status on initialization
+        checkAuthorizationStatus()
+    }
+
+    /// Check if HealthKit access has been granted
+    /// Note: Due to privacy, authorizationStatus doesn't reliably indicate if read access was granted.
+    /// We attempt to query data to verify actual access.
+    func checkAuthorizationStatus() {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            isAuthorized = false
+            return
+        }
+
+        // Attempt to query HRV data to verify we have actual read access
+        Task {
+            do {
+                let hrvType = HKQuantityType(.heartRateVariabilitySDNN)
+                let predicate = HKQuery.predicateForSamples(
+                    withStart: Date().addingTimeInterval(-86400 * 7), // Last 7 days
+                    end: Date(),
+                    options: .strictStartDate
+                )
+
+                let query = HKSampleQuery(
+                    sampleType: hrvType,
+                    predicate: predicate,
+                    limit: 1,
+                    sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]
+                ) { [weak self] _, samples, error in
+                    DispatchQueue.main.async {
+                        // If we get samples or no error, we likely have access
+                        // Even if samples is empty, if there's no permission error, we have access
+                        if error == nil {
+                            self?.isAuthorized = true
+                        } else {
+                            // Check if it's a permission error
+                            let nsError = error as NSError?
+                            if nsError?.code == HKError.errorAuthorizationNotDetermined.rawValue ||
+                               nsError?.code == HKError.errorAuthorizationDenied.rawValue {
+                                self?.isAuthorized = false
+                            } else {
+                                // Other errors don't mean we lack permission
+                                self?.isAuthorized = true
+                            }
+                        }
+                    }
+                }
+
+                healthStore.execute(query)
+            }
+        }
+    }
+
     func requestAuthorization() async throws {
         guard HKHealthStore.isHealthDataAvailable() else {
             print("❌ HealthKit is not available on this device")
@@ -33,8 +87,10 @@ class HealthKitManager: ObservableObject {
 
         print("🔐 Requesting HealthKit authorization...")
         try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
+
+        // Re-check authorization status after request
         await MainActor.run {
-            self.isAuthorized = true
+            self.checkAuthorizationStatus()
         }
         print("✅ HealthKit authorization granted")
     }

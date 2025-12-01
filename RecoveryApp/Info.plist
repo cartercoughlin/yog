@@ -27,7 +27,7 @@
     <string>1.0.0</string>
     <key>LSApplicationQueriesSchemes</key>
     <array>
-        <string>garminconnect</string>
+        <string>com.garmin.connect.mobile</string>
         <string>strava</string>
     </array>
 </dict>

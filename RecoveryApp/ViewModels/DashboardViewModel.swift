@@ -21,13 +21,12 @@ class DashboardViewModel: ObservableObject {
     private let healthKitManager = HealthKitManager()
     private let recoveryCalculator = RecoveryCalculator()
     private let recommendationEngine = RecommendationEngine()
-    let injuryViewModel = InjuryTrackerViewModel()
 
     // Cache management
     private var lastLoadTime: Date?
     private var cacheExpirationInterval: TimeInterval = 300 // 5 minutes
 
-    func loadData() async {
+    func loadData(injuryViewModel: InjuryTrackerViewModel) async {
         // Check if we have cached data that's still fresh
         if let lastLoad = lastLoadTime,
            todayRecovery != nil,
@@ -90,10 +89,10 @@ class DashboardViewModel: ObservableObject {
         isLoading = false
     }
 
-    func refreshData() async {
+    func refreshData(injuryViewModel: InjuryTrackerViewModel) async {
         // Force refresh by clearing cache
         lastLoadTime = nil
-        await loadData()
+        await loadData(injuryViewModel: injuryViewModel)
     }
 
     func clearCache() {

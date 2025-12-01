@@ -84,7 +84,12 @@ struct WeekDetailView: View {
     }
 
     private var trainingPacesCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let raceMiles = plan.raceDistance.meters / 1609.34
+        let goalRacePaceSecPerMile = plan.goalTimeInSeconds / raceMiles
+        let paces = VDOTCalculator.calculateTrainingPacesFromGoal(goalRacePaceSecPerMile: goalRacePaceSecPerMile, raceDistance: plan.raceDistance)
+        let racePaceLabel = racePaceLabelFor(distance: plan.raceDistance)
+
+        return VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Training Paces")
                     .font(.headline)
@@ -99,14 +104,9 @@ struct WeekDetailView: View {
                 }
             }
 
-            // Calculate goal marathon pace from plan data
-            let marathonMiles = plan.raceDistance.meters / 1609.34
-            let goalMarathonPaceSecPerMile = plan.goalTimeInSeconds / marathonMiles
-            let paces = VDOTCalculator.calculateTrainingPacesFromGoal(goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile)
-
             VStack(spacing: 8) {
                 paceRow(type: "Easy (E)", pace: paces.easyMinPerMile, color: .green)
-                paceRow(type: "Marathon (M)", pace: paces.marathonMinPerMile, color: .blue)
+                paceRow(type: racePaceLabel, pace: paces.racePaceMinPerMile, color: .blue)
                 paceRow(type: "Threshold (T)", pace: paces.thresholdMinPerMile, color: .orange)
                 paceRow(type: "Interval (I)", pace: paces.intervalMinPerMile, color: .red)
                 paceRow(type: "Repetition (R)", pace: paces.repetitionMinPerMile, color: .purple)
@@ -117,6 +117,19 @@ struct WeekDetailView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.secondarySystemBackground))
         )
+    }
+
+    private func racePaceLabelFor(distance: RaceDistance) -> String {
+        switch distance {
+        case .fiveK:
+            return "5K Race Pace (RP)"
+        case .tenK:
+            return "10K Race Pace (RP)"
+        case .halfMarathon:
+            return "Half Marathon (HM)"
+        case .marathon:
+            return "Marathon (M)"
+        }
     }
 
     private func paceRow(type: String, pace: String, color: Color) -> some View {
@@ -148,7 +161,7 @@ struct WeekDetailView: View {
                 .font(.headline)
 
             ForEach(week.workouts) { workout in
-                WorkoutCard(workout: workout)
+                WorkoutCard(workout: workout, plan: plan)
                     .environmentObject(viewModel)
             }
         }
@@ -166,14 +179,25 @@ struct WeekDetailView: View {
 
 struct WorkoutCard: View {
     let workout: DailyWorkout
+    let plan: TrainingPlan
     @State private var showLinkSheet = false
     @State private var showDatePicker = false
     @State private var newDate: Date
     @EnvironmentObject private var viewModel: TrainingPlanViewModel
 
-    init(workout: DailyWorkout) {
+    init(workout: DailyWorkout, plan: TrainingPlan) {
         self.workout = workout
+        self.plan = plan
         _newDate = State(initialValue: workout.date)
+    }
+
+    // Calculate pace dynamically based on current pace calculation logic
+    private var calculatedPace: String? {
+        guard workout.type != .rest else { return nil }
+
+        let raceMiles = plan.raceDistance.meters / 1609.34
+        let goalRacePaceSecPerMile = plan.goalTimeInSeconds / raceMiles
+        return VDOTCalculator.paceForWorkoutType(workout.type, goalRacePaceSecPerMile: goalRacePaceSecPerMile, raceDistance: plan.raceDistance)
     }
 
     private var dateFormatter: DateFormatter {
@@ -239,7 +263,7 @@ struct WorkoutCard: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    if let pace = workout.paceMinPerMile {
+                    if let pace = calculatedPace {
                         HStack(spacing: 4) {
                             Image(systemName: "speedometer")
                                 .font(.caption)

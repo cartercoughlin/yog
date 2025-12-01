@@ -250,8 +250,8 @@ struct WorkoutDetailHistoryView: View {
     }
 
     private func openGarminConnect() {
-        // Try to open Garmin Connect app first
-        if let url = URL(string: "garminconnect://") {
+        // Try to open Garmin Connect app first using the correct URL scheme
+        if let url = URL(string: "com.garmin.connect.mobile://") {
             UIApplication.shared.open(url, options: [:]) { success in
                 if !success {
                     // If app not installed, open App Store

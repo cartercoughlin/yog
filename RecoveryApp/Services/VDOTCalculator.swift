@@ -34,10 +34,14 @@ class VDOTCalculator {
 
     struct TrainingPaces {
         let easyMinPerMile: String       // Easy/Recovery
-        let marathonMinPerMile: String   // Marathon pace
+        let racePaceMinPerMile: String   // Race pace (5K/10K/HM/Marathon)
         let thresholdMinPerMile: String  // Tempo/Threshold
         let intervalMinPerMile: String   // VO2max intervals
         let repetitionMinPerMile: String // Speed work
+        let raceDistance: RaceDistance?  // Store race distance for display purposes
+
+        // Convenience computed property for backward compatibility
+        var marathonMinPerMile: String { racePaceMinPerMile }
     }
 
     /// Calculate all training paces based on VDOT
@@ -61,38 +65,84 @@ class VDOTCalculator {
 
         return TrainingPaces(
             easyMinPerMile: formatPace(secondsPerMile: easyPaceSecPerMile),
-            marathonMinPerMile: formatPace(secondsPerMile: marathonPaceSecPerMile),
+            racePaceMinPerMile: formatPace(secondsPerMile: marathonPaceSecPerMile),
             thresholdMinPerMile: formatPace(secondsPerMile: thresholdPaceSecPerMile),
             intervalMinPerMile: formatPace(secondsPerMile: intervalPaceSecPerMile),
-            repetitionMinPerMile: formatPace(secondsPerMile: repetitionPaceSecPerMile)
+            repetitionMinPerMile: formatPace(secondsPerMile: repetitionPaceSecPerMile),
+            raceDistance: nil
         )
     }
 
-    /// Calculate training paces based on goal marathon pace
+    /// Calculate training paces based on goal race pace and distance
     /// This uses the actual goal pace rather than VDOT-derived pace
-    static func calculateTrainingPacesFromGoal(goalMarathonPaceSecPerMile: Double) -> TrainingPaces {
-        // Use goal marathon pace as the baseline
-        let marathonPaceSecPerMile = goalMarathonPaceSecPerMile
+    static func calculateTrainingPacesFromGoal(goalRacePaceSecPerMile: Double, raceDistance: RaceDistance) -> TrainingPaces {
+        // Use goal race pace as the baseline
+        let racePaceSecPerMile = goalRacePaceSecPerMile
 
-        // Calculate other paces relative to marathon pace
-        // Easy: 15-25% slower than marathon (use 20%)
-        let easyPaceSecPerMile = marathonPaceSecPerMile * 1.20
+        // Calculate marathon-equivalent pace for relative calculations
+        // For shorter distances, we need to adjust since race pace is faster
+        let marathonEquivalentPace: Double
+        switch raceDistance {
+        case .fiveK:
+            // 5K pace is ~15-20% faster than marathon pace
+            marathonEquivalentPace = racePaceSecPerMile * 1.18
+        case .tenK:
+            // 10K pace is ~10-12% faster than marathon pace
+            marathonEquivalentPace = racePaceSecPerMile * 1.11
+        case .halfMarathon:
+            // Half marathon pace is ~3-5% faster than marathon pace
+            marathonEquivalentPace = racePaceSecPerMile * 1.04
+        case .marathon:
+            marathonEquivalentPace = racePaceSecPerMile
+        }
 
-        // Threshold: 5-8% faster than marathon (use 6%)
-        let thresholdPaceSecPerMile = marathonPaceSecPerMile * 0.94
+        // Calculate easy pace - based on marathon-equivalent pace for consistency
+        // Easy pace should be the same regardless of race distance, as it's based on
+        // aerobic capacity and heart rate zones, not race-specific pace
+        // We use marathon-equivalent pace as the baseline since it represents
+        // sustainable aerobic effort
+        let easyPaceSecPerMile = marathonEquivalentPace * 1.30  // 30% slower than marathon pace
 
-        // Interval: 12-15% faster than marathon (use 13%)
-        let intervalPaceSecPerMile = marathonPaceSecPerMile * 0.87
+        // Threshold, Interval, and Repetition paces depend on race distance
+        let thresholdPaceSecPerMile: Double
+        let intervalPaceSecPerMile: Double
+        let repetitionPaceSecPerMile: Double
 
-        // Repetition: 18-22% faster than marathon (use 20%)
-        let repetitionPaceSecPerMile = marathonPaceSecPerMile * 0.80
+        switch raceDistance {
+        case .fiveK:
+            // For 5K: race pace is between Threshold and Interval
+            // So Threshold is slightly slower than race, Interval is race pace, Rep is faster
+            thresholdPaceSecPerMile = racePaceSecPerMile * 1.03  // ~3% slower than 5K pace
+            intervalPaceSecPerMile = racePaceSecPerMile  // 5K pace IS interval pace
+            repetitionPaceSecPerMile = racePaceSecPerMile * 0.95  // ~5% faster than 5K pace
+
+        case .tenK:
+            // For 10K: race pace is between Threshold and Interval
+            // Threshold is slightly slower, Interval is slightly faster
+            thresholdPaceSecPerMile = racePaceSecPerMile * 1.04  // ~4% slower than 10K pace
+            intervalPaceSecPerMile = racePaceSecPerMile * 0.98  // ~2% faster than 10K pace
+            repetitionPaceSecPerMile = racePaceSecPerMile * 0.92  // ~8% faster than 10K pace
+
+        case .halfMarathon:
+            // For Half Marathon: race pace is very close to Threshold
+            thresholdPaceSecPerMile = racePaceSecPerMile * 1.02  // ~2% slower than HM pace
+            intervalPaceSecPerMile = racePaceSecPerMile * 0.95  // ~5% faster than HM pace
+            repetitionPaceSecPerMile = racePaceSecPerMile * 0.88  // ~12% faster than HM pace
+
+        case .marathon:
+            // For Marathon: use standard marathon-based calculations
+            thresholdPaceSecPerMile = marathonEquivalentPace * 0.94  // ~6% faster than M pace
+            intervalPaceSecPerMile = marathonEquivalentPace * 0.87  // ~13% faster than M pace
+            repetitionPaceSecPerMile = marathonEquivalentPace * 0.80  // ~20% faster than M pace
+        }
 
         return TrainingPaces(
             easyMinPerMile: formatPace(secondsPerMile: easyPaceSecPerMile),
-            marathonMinPerMile: formatPace(secondsPerMile: marathonPaceSecPerMile),
+            racePaceMinPerMile: formatPace(secondsPerMile: racePaceSecPerMile),
             thresholdMinPerMile: formatPace(secondsPerMile: thresholdPaceSecPerMile),
             intervalMinPerMile: formatPace(secondsPerMile: intervalPaceSecPerMile),
-            repetitionMinPerMile: formatPace(secondsPerMile: repetitionPaceSecPerMile)
+            repetitionMinPerMile: formatPace(secondsPerMile: repetitionPaceSecPerMile),
+            raceDistance: raceDistance
         )
     }
 
@@ -119,15 +169,15 @@ class VDOTCalculator {
         }
     }
 
-    /// Get pace for specific workout type based on goal marathon pace
-    static func paceForWorkoutType(_ type: TrainingWorkoutType, goalMarathonPaceSecPerMile: Double) -> String {
-        let paces = calculateTrainingPacesFromGoal(goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile)
+    /// Get pace for specific workout type based on goal race pace and distance
+    static func paceForWorkoutType(_ type: TrainingWorkoutType, goalRacePaceSecPerMile: Double, raceDistance: RaceDistance) -> String {
+        let paces = calculateTrainingPacesFromGoal(goalRacePaceSecPerMile: goalRacePaceSecPerMile, raceDistance: raceDistance)
 
         switch type {
         case .easy, .long:
             return paces.easyMinPerMile
         case .marathon, .racePace:
-            return paces.marathonMinPerMile
+            return paces.racePaceMinPerMile
         case .threshold:
             return paces.thresholdMinPerMile
         case .interval:

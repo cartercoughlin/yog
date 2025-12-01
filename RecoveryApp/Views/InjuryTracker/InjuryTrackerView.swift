@@ -1,33 +1,40 @@
 import SwiftUI
 
 struct InjuryTrackerView: View {
-    @StateObject private var viewModel = InjuryTrackerViewModel()
+    @EnvironmentObject var viewModel: InjuryTrackerViewModel
+    @EnvironmentObject var themeManager: ThemeManager
     @State private var showAddInjury = false
     @State private var selectedRegion: BodyRegion?
     @State private var showBodyDiagram = false
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Summary Card
-                    summaryCard
+            ZStack {
+                // Clean background
+                Color(.systemBackground)
+                    .ignoresSafeArea()
 
-                    // Active Injuries
-                    if !viewModel.activeInjuries.isEmpty {
-                        activeInjuriesSection
-                    }
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Summary Card
+                        summaryCard
 
-                    // Resolved Injuries
-                    if !viewModel.resolvedInjuries.isEmpty {
-                        resolvedInjuriesSection
-                    }
+                        // Active Injuries
+                        if !viewModel.activeInjuries.isEmpty {
+                            activeInjuriesSection
+                        }
 
-                    if viewModel.injuries.isEmpty {
-                        emptyState
+                        // Resolved Injuries
+                        if !viewModel.resolvedInjuries.isEmpty {
+                            resolvedInjuriesSection
+                        }
+
+                        if viewModel.injuries.isEmpty {
+                            emptyState
+                        }
                     }
+                    .padding(.bottom)
                 }
-                .padding(.bottom)
             }
             .navigationTitle("Injury Tracker")
             .toolbar {
@@ -107,8 +114,17 @@ struct InjuryTrackerView: View {
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.secondarySystemBackground))
+
+                VStack {
+                    themeManager.currentTheme.headerGradient
+                        .frame(height: 80)
+                    Spacer()
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
         )
         .padding(.horizontal)
     }
@@ -176,6 +192,7 @@ struct InjuryTrackerView: View {
 
 struct InjuryRow: View {
     let injury: Injury
+    @EnvironmentObject var themeManager: ThemeManager
 
     var body: some View {
         HStack(spacing: 12) {
@@ -223,8 +240,17 @@ struct InjuryRow: View {
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color(.systemBackground))
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(.systemBackground))
+
+                VStack {
+                    themeManager.currentTheme.headerGradient
+                        .frame(height: 50)
+                    Spacer()
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
         )
         .padding(.horizontal)
     }

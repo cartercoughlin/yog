@@ -10,27 +10,35 @@ import Charts
 
 struct HistoryView: View {
     @StateObject private var viewModel = HistoryViewModel()
+    @EnvironmentObject var themeManager: ThemeManager
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    if viewModel.isLoading {
-                        ProgressView("Loading history...")
-                            .padding(.top, 100)
-                    } else if viewModel.recoveryHistory.isEmpty {
-                        EmptyHistoryView()
-                    } else {
-                        timeRangePicker
+            ZStack {
+                // Clean background
+                Color(.systemBackground)
+                    .ignoresSafeArea()
 
-                        statisticsCards
+                ScrollView {
+                    VStack(spacing: 20) {
+                        if viewModel.isLoading {
+                            ProgressView("Loading history...")
+                                .foregroundStyle(.white)
+                                .padding(.top, 100)
+                        } else if viewModel.recoveryHistory.isEmpty {
+                            EmptyHistoryView()
+                        } else {
+                            timeRangePicker
 
-                        recoveryScoreChart
+                            statisticsCards
 
-                        workoutsList
+                            recoveryScoreChart
+
+                            workoutsList
+                        }
                     }
+                    .padding(.bottom, 20)
                 }
-                .padding(.bottom, 20)
             }
             .navigationTitle("History")
             .task {
@@ -124,8 +132,17 @@ struct HistoryView: View {
             }
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.secondarySystemBackground))
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.secondarySystemBackground))
+
+                    VStack {
+                        themeManager.currentTheme.headerGradient
+                            .frame(height: 100)
+                        Spacer()
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
             )
             .padding(.horizontal)
         }
@@ -162,6 +179,7 @@ struct StatCard: View {
     let value: String
     let icon: String
     let color: Color
+    @EnvironmentObject var themeManager: ThemeManager
 
     var body: some View {
         VStack(spacing: 8) {
@@ -183,14 +201,24 @@ struct StatCard: View {
         .frame(maxWidth: .infinity, minHeight: 120)
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.secondarySystemBackground))
+
+                VStack {
+                    themeManager.currentTheme.headerGradient
+                        .frame(height: 60)
+                    Spacer()
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
         )
     }
 }
 
 struct WorkoutHistoryRow: View {
     let workout: WorkoutData
+    @EnvironmentObject var themeManager: ThemeManager
 
     var body: some View {
         HStack(spacing: 12) {
@@ -232,8 +260,17 @@ struct WorkoutHistoryRow: View {
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.secondarySystemBackground))
+
+                VStack {
+                    themeManager.currentTheme.headerGradient
+                        .frame(height: 50)
+                    Spacer()
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
         )
         .padding(.horizontal)
     }

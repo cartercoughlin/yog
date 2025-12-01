@@ -29,6 +29,10 @@ struct SettingsView: View {
                         }
                     }
                 }
+                .onAppear {
+                    // Refresh authorization status when view appears
+                    healthKitManager.checkAuthorizationStatus()
+                }
 
                 Section("Baseline Data") {
                     VStack(alignment: .leading, spacing: 8) {

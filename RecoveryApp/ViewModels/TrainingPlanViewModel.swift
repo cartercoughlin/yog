@@ -151,8 +151,8 @@ class TrainingPlanViewModel: ObservableObject {
         totalWeeks: Int,
         phase: TrainingPhase
     ) -> Double {
-        // Determine if this is a stepback week (every 3rd week)
-        let isStepbackWeek = (weekNumber % 3 == 0) && weekNumber < (totalWeeks - 2)
+        // Determine if this is a stepback week (every 4th week, with smoother reduction)
+        let isStepbackWeek = (weekNumber % 4 == 0) && weekNumber < (totalWeeks - 2)
 
         // Build up from min to max over first 75% of plan, then taper
         let buildWeeks = Int(Double(totalWeeks) * 0.75)
@@ -161,10 +161,14 @@ class TrainingPlanViewModel: ObservableObject {
         var baseMileage: Double
 
         if weekNumber < buildWeeks {
-            // Progressive build
+            // Progressive build with smoother curve (reduces spikes)
             let progress = Double(weekNumber) / Double(buildWeeks)
             let mileageRange = maxWeeklyMileage - minWeeklyMileage
-            baseMileage = minWeeklyMileage + (mileageRange * progress)
+
+            // Use a smoother progression curve
+            // Instead of linear, use a cubic ease-in curve for more gradual build
+            let smoothProgress = pow(progress, 1.5)
+            baseMileage = minWeeklyMileage + (mileageRange * smoothProgress)
         } else {
             // Taper phase
             let weeksIntoTaper = weekNumber - buildWeeks
@@ -172,17 +176,18 @@ class TrainingPlanViewModel: ObservableObject {
             baseMileage = maxWeeklyMileage * (1.0 - (taperProgress * 0.4))  // 40% reduction
         }
 
-        // Apply stepback reduction: 20-25% reduction on stepback weeks
+        // Apply stepback reduction: gentler 15% reduction on stepback weeks
+        // This creates recovery without huge drops
         if isStepbackWeek {
-            return baseMileage * 0.75
+            return baseMileage * 0.85
         }
 
         return baseMileage
     }
 
     private func isStepbackWeek(weekNumber: Int, totalWeeks: Int) -> Bool {
-        // Every 3rd week is a stepback, except during final taper (last 2 weeks)
-        return (weekNumber % 3 == 0) && weekNumber < (totalWeeks - 2)
+        // Every 4th week is a stepback, except during final taper (last 2 weeks)
+        return (weekNumber % 4 == 0) && weekNumber < (totalWeeks - 2)
     }
 
     // MARK: - Workout Generation
@@ -198,7 +203,13 @@ class TrainingPlanViewModel: ObservableObject {
         var workouts: [DailyWorkout] = []
 
         let isStepback = isStepbackWeek(weekNumber: weekNumber, totalWeeks: 16)
-        let longRunDistance = calculateLongRunDistance(targetMileage: targetMileage, phase: phase, isStepback: isStepback)
+        let longRunDistance = calculateLongRunDistance(
+            targetMileage: targetMileage,
+            phase: phase,
+            isStepback: isStepback,
+            weekNumber: weekNumber,
+            raceDistance: raceDistance
+        )
 
         // Consistent weekly structure inspired by Bandit Running and Hal Higdon
         // Sunday (day 0): Long Run
@@ -213,7 +224,8 @@ class TrainingPlanViewModel: ObservableObject {
             date: addDays(to: weekStartDate, days: 0),
             type: .long,
             distance: longRunDistance,
-            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+            goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+            raceDistance: raceDistance,
             description: longRunDescription
         ))
 
@@ -224,7 +236,8 @@ class TrainingPlanViewModel: ObservableObject {
             type: .easy,
             distance: mondayDistance,
             durationMinutes: Int(mondayDistance * 9.5),  // ~9.5 min/mile average
-            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+            goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+            raceDistance: raceDistance,
             description: phase == .foundation ? "Easy run" : "Easy run + 6 × 100m strides"
         ))
 
@@ -246,7 +259,8 @@ class TrainingPlanViewModel: ObservableObject {
             type: .easy,
             distance: wednesdayDistance,
             durationMinutes: Int(wednesdayDistance * 9.5),
-            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+            goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+            raceDistance: raceDistance,
             description: "Easy recovery run"
         ))
 
@@ -266,7 +280,8 @@ class TrainingPlanViewModel: ObservableObject {
             date: addDays(to: weekStartDate, days: 5),
             type: .rest,
             distance: nil,
-            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+            goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+            raceDistance: raceDistance,
             description: "Rest day"
         ))
 
@@ -311,7 +326,8 @@ class TrainingPlanViewModel: ObservableObject {
                 type: .easy,
                 distance: 5,
                 durationMinutes: 50,
-                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                 description: "Easy run"
             )
         }
@@ -324,7 +340,8 @@ class TrainingPlanViewModel: ObservableObject {
                 type: .threshold,
                 distance: 6,
                 durationMinutes: 50,
-                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                 description: "20 min @ T pace (tempo)"
             )
 
@@ -335,7 +352,8 @@ class TrainingPlanViewModel: ObservableObject {
                 date: addDays(to: weekStartDate, days: 2),
                 type: .repetition,
                 distance: 7,
-                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                 description: "\(reps) × 400m @ R pace, 90 sec rest"
             )
 
@@ -345,7 +363,8 @@ class TrainingPlanViewModel: ObservableObject {
                 date: addDays(to: weekStartDate, days: 2),
                 type: .interval,
                 distance: 8,
-                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                 description: "6 × 1000m @ I pace, equal jog rest"
             )
 
@@ -356,7 +375,8 @@ class TrainingPlanViewModel: ObservableObject {
                     date: addDays(to: weekStartDate, days: 2),
                     type: .marathon,
                     distance: 10,
-                    goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                    goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                     description: "2 miles E, 6 miles @ M pace, 2 miles E"
                 )
             } else {
@@ -364,7 +384,8 @@ class TrainingPlanViewModel: ObservableObject {
                     date: addDays(to: weekStartDate, days: 2),
                     type: .interval,
                     distance: 8,
-                    goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                    goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                     description: "5 × 1 mile @ I pace, 2 min rest"
                 )
             }
@@ -386,7 +407,8 @@ class TrainingPlanViewModel: ObservableObject {
                 type: .easy,
                 distance: 5,
                 durationMinutes: 50,
-                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                 description: "Easy run"
             )
         }
@@ -399,7 +421,8 @@ class TrainingPlanViewModel: ObservableObject {
                 date: addDays(to: weekStartDate, days: 4),
                 type: .hill,
                 distance: 7,
-                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                 description: "\(hillCount) × 300m hills, jog down recovery"
             )
         }
@@ -411,7 +434,8 @@ class TrainingPlanViewModel: ObservableObject {
                 type: .easy,
                 distance: 6,
                 durationMinutes: 55,
-                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                 description: "Easy run + 6 × 100m strides"
             )
 
@@ -420,7 +444,8 @@ class TrainingPlanViewModel: ObservableObject {
                 date: addDays(to: weekStartDate, days: 4),
                 type: .threshold,
                 distance: 7,
-                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                 description: "2 × 2 miles @ T pace, 1 min rest (cruise intervals)"
             )
 
@@ -429,7 +454,8 @@ class TrainingPlanViewModel: ObservableObject {
                 date: addDays(to: weekStartDate, days: 4),
                 type: .threshold,
                 distance: 8,
-                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                 description: "3 × 1.5 miles @ T pace, 1 min rest"
             )
 
@@ -438,7 +464,8 @@ class TrainingPlanViewModel: ObservableObject {
                 date: addDays(to: weekStartDate, days: 4),
                 type: .threshold,
                 distance: 8,
-                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                 description: "30 min continuous @ T pace"
             )
         }
@@ -458,7 +485,8 @@ class TrainingPlanViewModel: ObservableObject {
                 date: addDays(to: weekStartDate, days: 6),
                 type: .racePace,
                 distance: distance,
-                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                 description: "\(Int(distance)) miles @ goal marathon pace"
             )
         } else {
@@ -467,20 +495,35 @@ class TrainingPlanViewModel: ObservableObject {
                 type: .easy,
                 distance: distance,
                 durationMinutes: Int(distance * 9.5),
-                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
                 description: "Easy run"
             )
         }
     }
 
-    private func calculateLongRunDistance(targetMileage: Double, phase: TrainingPhase, isStepback: Bool) -> Double {
+    private func calculateLongRunDistance(
+        targetMileage: Double,
+        phase: TrainingPhase,
+        isStepback: Bool,
+        weekNumber: Int,
+        raceDistance: RaceDistance
+    ) -> Double {
         // Long run should be 25-30% of weekly mileage
         let percentage: Double = phase == .foundation ? 0.25 : 0.30
-        var distance = min(20, targetMileage * percentage)  // Cap at 20 miles
+        var distance = min(21, targetMileage * percentage)  // Cap at 21 miles
+
+        // For marathon training, ensure we hit 3 long runs of 20-21 miles
+        // These should be in weeks 10, 12, and 14 (before final taper)
+        if raceDistance == .marathon {
+            if weekNumber == 10 || weekNumber == 12 || weekNumber == 14 {
+                distance = max(distance, 20)  // Ensure at least 20 miles
+            }
+        }
 
         // Reduce long run on stepback weeks
         if isStepback {
-            distance *= 0.75
+            distance *= 0.80
         }
 
         return max(8, distance)  // Minimum 8 miles
@@ -542,10 +585,11 @@ class TrainingPlanViewModel: ObservableObject {
         type: TrainingWorkoutType,
         distance: Double?,
         durationMinutes: Int? = nil,
-        goalMarathonPaceSecPerMile: Double,
+        goalRacePaceSecPerMile: Double,
+        raceDistance: RaceDistance,
         description: String
     ) -> DailyWorkout {
-        let pace = type == .rest ? nil : VDOTCalculator.paceForWorkoutType(type, goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile)
+        let pace = type == .rest ? nil : VDOTCalculator.paceForWorkoutType(type, goalRacePaceSecPerMile: goalRacePaceSecPerMile, raceDistance: raceDistance)
 
         return DailyWorkout(
             date: date,

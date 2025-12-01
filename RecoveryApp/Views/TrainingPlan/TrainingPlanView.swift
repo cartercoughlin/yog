@@ -3,6 +3,7 @@ import Charts
 
 struct TrainingPlanView: View {
     @StateObject private var viewModel = TrainingPlanViewModel()
+    @EnvironmentObject var themeManager: ThemeManager
     @State private var showSetup = false
     @State private var selectedWeekNumber: String?
     @State private var isRefreshing = false
@@ -12,7 +13,11 @@ struct TrainingPlanView: View {
         NavigationStack {
             Group {
                 if viewModel.trainingPlans.isEmpty {
-                    emptyState
+                    ZStack {
+                        Color(.systemBackground)
+                            .ignoresSafeArea()
+                        emptyState
+                    }
                 } else {
                     // Always show list when there are plans
                     planListView
@@ -472,7 +477,7 @@ struct TrainingPlanView: View {
 
                         Spacer()
 
-                        if let pace = workout.paceMinPerMile {
+                        if let pace = calculatePaceForWorkout(workout, plan: plan) {
                             Text(pace + "/mi")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -529,6 +534,15 @@ struct TrainingPlanView: View {
         case .transitionQuality: return .orange
         case .finalQuality: return .red
         }
+    }
+
+    // Helper function to calculate pace dynamically based on current logic
+    private func calculatePaceForWorkout(_ workout: DailyWorkout, plan: TrainingPlan) -> String? {
+        guard workout.type != .rest else { return nil }
+
+        let raceMiles = plan.raceDistance.meters / 1609.34
+        let goalRacePaceSecPerMile = plan.goalTimeInSeconds / raceMiles
+        return VDOTCalculator.paceForWorkoutType(workout.type, goalRacePaceSecPerMile: goalRacePaceSecPerMile, raceDistance: plan.raceDistance)
     }
 }
 
@@ -660,9 +674,20 @@ struct SinglePlanView: View {
                     }
             }
         }
-        .navigationTitle("Training Plan")
+        .navigationTitle(plan.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 2) {
+                    Text(plan.name)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    Text(plan.raceDistance.rawValue)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showSetup = true
@@ -1056,7 +1081,7 @@ struct SinglePlanView: View {
 
                         Spacer()
 
-                        if let pace = workout.paceMinPerMile {
+                        if let pace = calculatePaceForWorkout(workout, plan: plan) {
                             Text(pace + "/mi")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -1113,6 +1138,15 @@ struct SinglePlanView: View {
         case .transitionQuality: return .orange
         case .finalQuality: return .red
         }
+    }
+
+    // Helper function to calculate pace dynamically based on current logic
+    private func calculatePaceForWorkout(_ workout: DailyWorkout, plan: TrainingPlan) -> String? {
+        guard workout.type != .rest else { return nil }
+
+        let raceMiles = plan.raceDistance.meters / 1609.34
+        let goalRacePaceSecPerMile = plan.goalTimeInSeconds / raceMiles
+        return VDOTCalculator.paceForWorkoutType(workout.type, goalRacePaceSecPerMile: goalRacePaceSecPerMile, raceDistance: plan.raceDistance)
     }
 }
 

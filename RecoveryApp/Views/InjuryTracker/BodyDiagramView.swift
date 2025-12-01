@@ -44,9 +44,8 @@ struct BodyDiagramView: View {
     }
 
     private var frontViewDiagram: some View {
-        GeometryReader { geometry in
-            let width = geometry.size.width
-            let centerX = width / 2
+        ZStack {
+            let centerX: CGFloat = 175
 
             ZStack {
                 // HEAD & NECK
@@ -223,9 +222,8 @@ struct BodyDiagramView: View {
     }
 
     private var backViewDiagram: some View {
-        GeometryReader { geometry in
-            let width = geometry.size.width
-            let centerX = width / 2
+        ZStack {
+            let centerX: CGFloat = 175
 
             ZStack {
                 // NECK

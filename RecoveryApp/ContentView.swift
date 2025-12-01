@@ -30,11 +30,17 @@ struct ContentView: View {
                 }
                 .tag(2)
 
+            InjuryTrackerView()
+                .tabItem {
+                    Label("Injuries", systemImage: "bandage")
+                }
+                .tag(3)
+
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
-                .tag(3)
+                .tag(4)
         }
     }
 }

@@ -21,7 +21,7 @@ class DashboardViewModel: ObservableObject {
     private let healthKitManager = HealthKitManager()
     private let recoveryCalculator = RecoveryCalculator()
     private let recommendationEngine = RecommendationEngine()
-    let injuryViewModel = InjuryViewModel()
+    let injuryViewModel = InjuryTrackerViewModel()
 
     // Cache management
     private var lastLoadTime: Date?
@@ -59,17 +59,9 @@ class DashboardViewModel: ObservableObject {
             )
 
             let allWorkouts = historicalMetrics.flatMap { $0.workouts }
-
-            // Get injury warnings for the recommended workout type
-            var injuryWarnings: [String] = []
-            if let recommendedType = getRecommendedWorkoutType(for: recovery.overallScore) {
-                injuryWarnings = injuryViewModel.getInjuryWarnings(for: recommendedType)
-            }
-
             let workoutRec = recommendationEngine.generateRecommendation(
                 recoveryScore: recovery.overallScore,
-                recentWorkouts: allWorkouts,
-                injuryWarnings: injuryWarnings
+                recentWorkouts: allWorkouts
             )
 
             let historicalRecovery = historicalMetrics.map { metrics in
@@ -110,17 +102,5 @@ class DashboardViewModel: ObservableObject {
         recommendation = nil
         weeklyTrend = nil
         historicalMetrics = []
-    }
-
-    private func getRecommendedWorkoutType(for recoveryScore: Int) -> String? {
-        if recoveryScore >= 85 {
-            return "Running"
-        } else if recoveryScore >= 70 {
-            return "Strength Training"
-        } else if recoveryScore >= 50 {
-            return "Walking"
-        } else {
-            return "Yoga"
-        }
     }
 }

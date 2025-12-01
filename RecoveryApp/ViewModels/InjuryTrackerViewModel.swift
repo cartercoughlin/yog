@@ -110,6 +110,10 @@ class InjuryTrackerViewModel: ObservableObject {
         !activeInjuries.isEmpty
     }
 
+    var totalRecoveryImpact: Double {
+        activeInjuries.reduce(0) { $0 + $1.recoveryImpact }
+    }
+
     // MARK: - Persistence
 
     private func saveInjuries() {

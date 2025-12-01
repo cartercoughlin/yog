@@ -11,8 +11,7 @@ class RecommendationEngine {
 
     func generateRecommendation(
         recoveryScore: Int,
-        recentWorkouts: [WorkoutData],
-        injuryWarnings: [String] = []
+        recentWorkouts: [WorkoutData]
     ) -> WorkoutRecommendation {
 
         let last7Days = recentWorkouts.filter { workout in
@@ -23,35 +22,17 @@ class RecommendationEngine {
         let runningDays = last7Days.filter { $0.type == .running }.count
         let mobilityDays = last7Days.filter { $0.type == .mobility || $0.type == .yoga }.count
 
-        var recommendation: WorkoutRecommendation
-
         if recoveryScore >= 85 {
-            recommendation = highRecoveryRecommendation(strengthDays: strengthDays, runningDays: runningDays)
+            return highRecoveryRecommendation(strengthDays: strengthDays, runningDays: runningDays)
         } else if recoveryScore >= 70 {
-            recommendation = goodRecoveryRecommendation(strengthDays: strengthDays, mobilityDays: mobilityDays)
+            return goodRecoveryRecommendation(strengthDays: strengthDays, mobilityDays: mobilityDays)
         } else if recoveryScore >= 50 {
-            recommendation = moderateRecoveryRecommendation(strengthDays: strengthDays)
+            return moderateRecoveryRecommendation(strengthDays: strengthDays)
         } else if recoveryScore >= 30 {
-            recommendation = lowRecoveryRecommendation()
+            return lowRecoveryRecommendation()
         } else {
-            recommendation = veryLowRecoveryRecommendation()
+            return veryLowRecoveryRecommendation()
         }
-
-        // Add injury warnings if present
-        if !injuryWarnings.isEmpty {
-            let warningText = "\n\n⚠️ Injury Warnings:\n" + injuryWarnings.map { "• \($0)" }.joined(separator: "\n")
-            recommendation = WorkoutRecommendation(
-                type: recommendation.type,
-                title: recommendation.title,
-                description: recommendation.description + warningText,
-                duration: recommendation.duration,
-                intensity: recommendation.intensity,
-                exercises: recommendation.exercises,
-                reason: recommendation.reason
-            )
-        }
-
-        return recommendation
     }
 
     private func highRecoveryRecommendation(strengthDays: Int, runningDays: Int) -> WorkoutRecommendation {

@@ -224,4 +224,18 @@ struct Injury: Identifiable, Codable {
             return false
         }
     }
+
+    // Recovery impact: how much this injury should reduce recovery score (0-30 points)
+    var recoveryImpact: Double {
+        guard isActive else { return 0 }
+
+        switch severity {
+        case .minor:
+            return 5
+        case .moderate:
+            return 15
+        case .severe:
+            return 30
+        }
+    }
 }

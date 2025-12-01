@@ -32,11 +32,7 @@ struct ContentView: View {
 
             InjuryTrackerView()
                 .tabItem {
-<<<<<<< HEAD
                     Label("Injuries", systemImage: "bandage.fill")
-=======
-                    Label("Injuries", systemImage: "bandage")
->>>>>>> c52ee1dfa8183110fe7c1274683153a5dfa8b653
                 }
                 .tag(3)
 

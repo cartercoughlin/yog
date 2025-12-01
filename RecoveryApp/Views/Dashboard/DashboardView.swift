@@ -352,7 +352,7 @@ struct EmptyStateView: View {
 }
 
 struct InjuryWarningCard: View {
-    @ObservedObject var injuryViewModel: InjuryViewModel
+    @ObservedObject var injuryViewModel: InjuryTrackerViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -364,7 +364,7 @@ struct InjuryWarningCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Active Injuries")
                         .font(.headline)
-                    Text(injuryViewModel.injurySummary)
+                    Text("\(injuryViewModel.injuryCount) active")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -390,26 +390,26 @@ struct InjuryWarningCard: View {
                 ForEach(Array(injuryViewModel.activeInjuries.prefix(3))) { injury in
                     HStack(spacing: 8) {
                         Circle()
-                            .fill(severityColor(injury.severity))
+                            .fill(injury.severity.color)
                             .frame(width: 8, height: 8)
 
-                        Text(injury.location.displayName)
+                        Text(injury.region.rawValue)
                             .font(.subheadline)
 
                         Text("•")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        Text(injury.painType.displayName)
+                        Text(injury.severity.rawValue)
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
                         Spacer()
 
-                        Text("\(injury.severity.numericValue)/10")
+                        Text(injury.name)
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundStyle(severityColor(injury.severity))
+                            .lineLimit(1)
                     }
                 }
 
@@ -427,16 +427,6 @@ struct InjuryWarningCard: View {
                 .fill(Color(.secondarySystemBackground))
         )
         .padding(.horizontal)
-    }
-
-    private func severityColor(_ severity: PainSeverity) -> Color {
-        switch severity.color {
-        case "yellow": return .yellow
-        case "orange": return .orange
-        case "red": return .red
-        case "purple": return .purple
-        default: return .gray
-        }
     }
 }
 

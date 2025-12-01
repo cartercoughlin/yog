@@ -138,7 +138,10 @@ struct HistoryView: View {
                 .padding(.horizontal)
 
             ForEach(viewModel.workoutHistory.prefix(10)) { workout in
-                WorkoutHistoryRow(workout: workout)
+                NavigationLink(destination: WorkoutDetailHistoryView(workout: workout)) {
+                    WorkoutHistoryRow(workout: workout)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -217,9 +220,15 @@ struct WorkoutHistoryRow: View {
 
             Spacer()
 
-            Text(formatRelativeTime(workout.date))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(formatRelativeTime(workout.date))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding()
         .background(

@@ -47,12 +47,20 @@ class HealthKitManager: ObservableObject {
         async let hrv = fetchHRV(for: date)
         async let restingHR = fetchRestingHeartRate(for: date)
         async let sleepData = fetchSleepData(for: date)
-        async let workouts = fetchWorkouts(startDate: startOfDay, endDate: endOfDay)
         async let activeEnergy = fetchActiveEnergy(startDate: startOfDay, endDate: endOfDay)
         async let steps = fetchSteps(startDate: startOfDay, endDate: endOfDay)
+        async let dateOfBirth = fetchDateOfBirth()
 
-        let (hrvValue, restingHRValue, sleep, workoutData, energy, stepCount) = try await (
-            hrv, restingHR, sleepData, workouts, activeEnergy, steps
+        let (hrvValue, restingHRValue, sleep, energy, stepCount, dob) = try await (
+            hrv, restingHR, sleepData, activeEnergy, steps, dateOfBirth
+        )
+
+        // Fetch workouts with context about resting HR and age for accurate training stress
+        let workoutData = try await fetchWorkouts(
+            startDate: startOfDay,
+            endDate: endOfDay,
+            restingHR: restingHRValue,
+            dateOfBirth: dob
         )
 
         return HealthMetrics(
@@ -471,7 +479,7 @@ class HealthKitManager: ObservableObject {
         )
     }
 
-    private func fetchWorkouts(startDate: Date, endDate: Date) async throws -> [WorkoutData] {
+    private func fetchWorkouts(startDate: Date, endDate: Date, restingHR: Int? = nil, dateOfBirth: Date? = nil) async throws -> [WorkoutData] {
         let workoutType = HKObjectType.workoutType()
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
 
@@ -501,6 +509,37 @@ class HealthKitManager: ObservableObject {
             let avgHR = try? await fetchAverageHeartRate(for: workout)
             let maxHR = try? await fetchMaxHeartRate(for: workout)
 
+            // Calculate training stress using heart rate if available
+            let durationMinutes = workout.duration / 60.0
+            let trainingStress: Double
+            if let avgHR = avgHR {
+                // Use actual resting HR from HealthKit, or fallback to 60
+                let actualRestingHR = Double(restingHR ?? 60)
+
+                // Calculate max HR based on age if available, otherwise use standard formula
+                let estimatedMaxHR: Double
+                if let dob = dateOfBirth {
+                    let age = Calendar.current.dateComponents([.year], from: dob, to: Date()).year ?? 30
+                    // Use more accurate Tanaka formula: 208 - (0.7 × age)
+                    estimatedMaxHR = 208.0 - (0.7 * Double(age))
+                } else {
+                    // Fallback to standard assumption
+                    estimatedMaxHR = 190.0
+                }
+
+                // Also consider the max HR from this specific workout
+                let workoutMaxHR = maxHR != nil ? Double(maxHR!) : estimatedMaxHR
+                let effectiveMaxHR = min(workoutMaxHR, estimatedMaxHR + 10) // Cap at formula + 10 for safety
+
+                // Heart rate reserve formula: intensity = (avgHR - restingHR) / (maxHR - restingHR)
+                let hrReserve = effectiveMaxHR - actualRestingHR
+                let intensity = max(0, min(1, (Double(avgHR) - actualRestingHR) / hrReserve)) // Clamp 0-1
+                trainingStress = durationMinutes * intensity * intensity * 100
+            } else {
+                // Fallback: use duration with moderate intensity assumption
+                trainingStress = durationMinutes * 0.5
+            }
+
             let data = WorkoutData(
                 date: workout.startDate,
                 type: WorkoutType.from(hkWorkoutType: workout.workoutActivityType),
@@ -509,12 +548,24 @@ class HealthKitManager: ObservableObject {
                 averageHeartRate: avgHR,
                 maxHeartRate: maxHR,
                 caloriesBurned: workout.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie()),
-                trainingStress: 0
+                trainingStress: trainingStress,
+                workout: workout
             )
+
             workoutData.append(data)
         }
 
         return workoutData
+    }
+
+    private func fetchDateOfBirth() async throws -> Date? {
+        do {
+            let dateOfBirthComponents = try healthStore.dateOfBirthComponents()
+            return Calendar.current.date(from: dateOfBirthComponents)
+        } catch {
+            print("   ⚠️ Could not fetch date of birth: \(error)")
+            return nil
+        }
     }
 
     private func fetchAverageHeartRate(for workout: HKWorkout) async throws -> Int? {

@@ -10,6 +10,7 @@ import SwiftUI
 struct WorkoutDetailView: View {
     let recommendation: WorkoutRecommendation
     @Environment(\.dismiss) private var dismiss
+    @State private var showingWorkoutSession = false
 
     var body: some View {
         ScrollView {
@@ -84,10 +85,14 @@ struct WorkoutDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Start") {
-                    // TODO: Implement workout tracking
+                    showingWorkoutSession = true
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(recommendation.exercises.isEmpty)
             }
+        }
+        .navigationDestination(isPresented: $showingWorkoutSession) {
+            WorkoutSessionView(recommendation: recommendation)
         }
     }
 }

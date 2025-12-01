@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import HealthKit
 
 struct WorkoutData: Codable, Identifiable {
     let id: UUID
@@ -18,6 +19,14 @@ struct WorkoutData: Codable, Identifiable {
     let caloriesBurned: Double?
     let trainingStress: Double
 
+    // Not codable - for runtime use only
+    var workout: HKWorkout?
+
+    enum CodingKeys: String, CodingKey {
+        case id, date, type, duration, distance
+        case averageHeartRate, maxHeartRate, caloriesBurned, trainingStress
+    }
+
     init(
         id: UUID = UUID(),
         date: Date,
@@ -27,7 +36,8 @@ struct WorkoutData: Codable, Identifiable {
         averageHeartRate: Int? = nil,
         maxHeartRate: Int? = nil,
         caloriesBurned: Double? = nil,
-        trainingStress: Double = 0
+        trainingStress: Double = 0,
+        workout: HKWorkout? = nil
     ) {
         self.id = id
         self.date = date
@@ -38,6 +48,7 @@ struct WorkoutData: Codable, Identifiable {
         self.maxHeartRate = maxHeartRate
         self.caloriesBurned = caloriesBurned
         self.trainingStress = trainingStress
+        self.workout = workout
     }
 
     var durationInMinutes: Double {

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct InjuryDetailView: View {
-    let injury: Injury
+    let injuryId: UUID
     @ObservedObject var viewModel: InjuryTrackerViewModel
 
     @State private var showExerciseDetail: RehabExercise?
@@ -9,12 +9,17 @@ struct InjuryDetailView: View {
     @State private var isEditing = false
 
     init(injury: Injury, viewModel: InjuryTrackerViewModel) {
-        self.injury = injury
+        self.injuryId = injury.id
         self.viewModel = viewModel
         _editedNotes = State(initialValue: injury.notes)
     }
 
+    private var injury: Injury? {
+        viewModel.injuries.first { $0.id == injuryId }
+    }
+
     var body: some View {
+        if let injury = injury {
         ScrollView {
             VStack(spacing: 20) {
                 // Injury Header
@@ -44,6 +49,10 @@ struct InjuryDetailView: View {
                 injury: injury,
                 viewModel: viewModel
             )
+        }
+        } else {
+            Text("Injury not found")
+                .foregroundStyle(.secondary)
         }
     }
 

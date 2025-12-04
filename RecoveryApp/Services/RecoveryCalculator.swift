@@ -31,12 +31,18 @@ class RecoveryCalculator {
             historicalMetrics: historicalMetrics
         )
 
-        // Adjusted weights to better reflect recovery importance
-        let baseScore = Int(
-            hrvScore * 0.20 +         // HRV is a strong recovery indicator
-            rhrScore * 0.25 +         // Resting HR is critical
-            sleepScore * 0.25 +       // Sleep quality is essential
-            trainingLoadScore * 0.30  // Training load has significant impact on recovery
+        let screenTimeScore = calculateScreenTimeScore(
+            current: currentMetrics.screenTimeHours,
+            historical: historicalMetrics
+        )
+
+        // Adjusted weights to include screen time
+        let overallScore = Int(
+            hrvScore * 0.18 +           // HRV is a strong recovery indicator
+            rhrScore * 0.22 +           // Resting HR is critical
+            sleepScore * 0.22 +         // Sleep quality is essential
+            trainingLoadScore * 0.28 +  // Training load has significant impact
+            screenTimeScore * 0.10      // Screen time affects mental recovery
         )
 
         // Subtract injury impact from overall score
@@ -50,6 +56,7 @@ class RecoveryCalculator {
             restingHRScore: rhrScore,
             sleepScore: sleepScore,
             trainingLoadScore: trainingLoadScore,
+            screenTimeScore: screenTimeScore,
             overallScore: overallScore,
             category: category,
             metrics: currentMetrics
@@ -192,6 +199,55 @@ class RecoveryCalculator {
         }
 
         return max(0, min(100, qualityScore))
+    }
+
+    private func calculateScreenTimeScore(current: Double?, historical: [HealthMetrics]) -> Double {
+        guard let currentScreenTime = current else { return 50.0 }
+
+        let last30Days = historical.suffix(30)
+        let screenTimeValues = last30Days.compactMap { $0.screenTimeHours }
+
+        guard screenTimeValues.count >= 7 else {
+            // Not enough data, use baseline approach
+            // Lower screen time = better score (inverse relationship)
+            // Optimal: <2 hours = 90-100, 2-3 hours = 75-90, 3-4 hours = 60-75, >4 hours = <60
+            if currentScreenTime < 2.0 {
+                return min(100, 90 + (2.0 - currentScreenTime) * 5)
+            } else if currentScreenTime < 3.0 {
+                return 75 + (3.0 - currentScreenTime) * 15
+            } else if currentScreenTime < 4.0 {
+                return 60 + (4.0 - currentScreenTime) * 15
+            } else if currentScreenTime < 6.0 {
+                return 40 + (6.0 - currentScreenTime) * 10
+            } else {
+                return max(0, 40 - (currentScreenTime - 6.0) * 5)
+            }
+        }
+
+        // Calculate percentile-based score (inverted: lower screen time = higher percentile)
+        let sortedValues = screenTimeValues.sorted()
+        let inversePercentile = 100 - calculatePercentile(value: currentScreenTime, in: sortedValues)
+
+        // Lower screen time = better recovery (similar to resting HR)
+        let score: Double
+        if inversePercentile >= 80 {
+            // Top 20% (lowest screen time) = excellent (85-100)
+            score = 85 + (inversePercentile - 80) * 0.75
+        } else if inversePercentile >= 60 {
+            // Above median (60-80th percentile) = good (75-85)
+            score = 75 + (inversePercentile - 60) * 0.5
+        } else if inversePercentile >= 40 {
+            // Near median (40-60th percentile) = fair (65-75)
+            score = 65 + (inversePercentile - 40) * 0.5
+        } else if inversePercentile >= 20 {
+            // Below median (20-40th percentile) = moderate (50-65)
+            score = 50 + (inversePercentile - 20) * 0.75
+        } else {
+            // Bottom 20% (highest screen time) = low (0-50)
+            score = inversePercentile * 2.5
+        }
+
+        return max(0, min(100, score))
     }
 
     private func calculateTrainingLoadScore(

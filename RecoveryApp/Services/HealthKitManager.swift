@@ -50,9 +50,10 @@ class HealthKitManager: ObservableObject {
         async let workouts = fetchWorkouts(startDate: startOfDay, endDate: endOfDay)
         async let activeEnergy = fetchActiveEnergy(startDate: startOfDay, endDate: endOfDay)
         async let steps = fetchSteps(startDate: startOfDay, endDate: endOfDay)
+        async let screenTime = fetchScreenTime(for: date)
 
-        let (hrvValue, restingHRValue, sleep, workoutData, energy, stepCount) = try await (
-            hrv, restingHR, sleepData, workouts, activeEnergy, steps
+        let (hrvValue, restingHRValue, sleep, workoutData, energy, stepCount, screenTimeHours) = try await (
+            hrv, restingHR, sleepData, workouts, activeEnergy, steps, screenTime
         )
 
         return HealthMetrics(
@@ -65,7 +66,8 @@ class HealthKitManager: ObservableObject {
             coreSleepDuration: sleep.coreDuration,
             workouts: workoutData,
             activeEnergyBurned: energy,
-            steps: stepCount
+            steps: stepCount,
+            screenTimeHours: screenTimeHours
         )
     }
 
@@ -597,6 +599,28 @@ class HealthKitManager: ObservableObject {
                 continuation.resume(returning: sum.map { Int($0) })
             }
             healthStore.execute(query)
+        }
+    }
+
+    private func fetchScreenTime(for date: Date) async throws -> Double? {
+        // Fetch screen time data using ScreenTimeMonitor
+        // This uses simulated data in development; production would require DeviceActivity framework
+        print("📱 Fetching Screen Time for \(date)...")
+
+        do {
+            let screenTimeData = try await ScreenTimeMonitor.shared.fetchScreenTime(for: date)
+            let hours = screenTimeData?.filteredHours
+
+            if let hours = hours {
+                print("   ✅ Screen Time: \(String(format: "%.1f", hours)) hours (filtered)")
+            } else {
+                print("   ⚠️ No Screen Time data available")
+            }
+
+            return hours
+        } catch {
+            print("   ❌ Screen Time fetch error: \(error)")
+            return nil
         }
     }
 

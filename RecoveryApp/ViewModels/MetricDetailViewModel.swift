@@ -55,6 +55,8 @@ class MetricDetailViewModel: ObservableObject {
             return sleepDuration / 3600.0  // Convert seconds to hours
         case .steps:
             return metric.steps.map { Double($0) }
+        case .screenTime:
+            return metric.screenTimeHours
         }
     }
 
@@ -82,19 +84,19 @@ class MetricDetailViewModel: ObservableObject {
             if abs(percentDiff) < 2 {
                 trend = "Stable"
             } else if percentDiff > 0 {
-                // For HRV and Sleep, higher is better
-                // For Resting HR, lower is better
+                // For HRV, Sleep, and Steps, higher is better
+                // For Resting HR and Screen Time, lower is better
                 switch metricType {
                 case .hrv, .sleep, .steps:
                     trend = "↑ Improving"
-                case .restingHeartRate:
+                case .restingHeartRate, .screenTime:
                     trend = "↑ Above Average"
                 }
             } else {
                 switch metricType {
                 case .hrv, .sleep, .steps:
                     trend = "↓ Below Average"
-                case .restingHeartRate:
+                case .restingHeartRate, .screenTime:
                     trend = "↓ Improving"
                 }
             }
@@ -113,6 +115,8 @@ class MetricDetailViewModel: ObservableObject {
             return String(format: "%.1f", value)
         case .steps:
             return String(format: "%.0f", value)
+        case .screenTime:
+            return String(format: "%.1f", value)
         }
     }
 }

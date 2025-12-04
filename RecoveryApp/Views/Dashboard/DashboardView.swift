@@ -207,6 +207,23 @@ struct MetricsDetailCard: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
+
+                if let screenTime = metrics.screenTimeHours {
+                    NavigationLink {
+                        MetricDetailView(
+                            metricType: .screenTime,
+                            historicalMetrics: historicalMetrics
+                        )
+                    } label: {
+                        MetricItem(
+                            icon: "iphone",
+                            label: "Screen Time",
+                            value: String(format: "%.1f hrs", screenTime),
+                            color: .orange
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
             }
         }
         .padding()

@@ -66,9 +66,9 @@ struct WeekDetailView: View {
             }
         }
         .padding()
-        .background(
+        .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
     }
 
@@ -113,9 +113,9 @@ struct WeekDetailView: View {
             }
         }
         .padding()
-        .background(
+        .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
     }
 

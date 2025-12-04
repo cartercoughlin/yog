@@ -281,6 +281,111 @@ class ExerciseDatabase {
             ]
         ),
 
+        RehabExercise(
+            name: "Single-Leg Glute Bridges",
+            type: .strengthening,
+            description: "Advanced glute strengthening for hip stability",
+            duration: "3 sets of 10 per leg",
+            targetRegions: [.leftGlute, .rightGlute, .leftHip, .rightHip],
+            instructions: [
+                "Lie on back, one knee bent, other leg straight",
+                "Drive through heel of bent leg",
+                "Lift hips up, keep straight leg elevated",
+                "Squeeze glutes at top",
+                "Lower slowly, repeat"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Fire Hydrants",
+            type: .strengthening,
+            description: "Targets hip abductors and glute medius",
+            duration: "3 sets of 12 per side",
+            targetRegions: [.leftHip, .rightHip, .leftGlute, .rightGlute],
+            instructions: [
+                "Start on hands and knees",
+                "Keep knee bent at 90 degrees",
+                "Lift leg out to side",
+                "Keep hips level",
+                "Lower slowly, repeat"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Hip Circles",
+            type: .mobilityDrill,
+            description: "Improves hip mobility in all directions",
+            duration: "10 circles each direction",
+            targetRegions: [.leftHip, .rightHip],
+            instructions: [
+                "Stand on one leg, hold wall for balance",
+                "Lift other knee to 90 degrees",
+                "Make large circles with knee",
+                "5 circles forward, 5 circles backward",
+                "Switch legs and repeat"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Lateral Leg Raises",
+            type: .strengthening,
+            description: "Strengthens hip abductors",
+            duration: "3 sets of 15 per side",
+            targetRegions: [.leftHip, .rightHip, .leftGlute, .rightGlute],
+            instructions: [
+                "Lie on side, bottom leg slightly bent",
+                "Keep top leg straight",
+                "Lift top leg toward ceiling",
+                "Hold for 2 seconds",
+                "Lower slowly, repeat"
+            ]
+        ),
+
+        RehabExercise(
+            name: "90/90 Hip Stretch",
+            type: .stretch,
+            description: "Deep hip mobility stretch",
+            duration: "2 min per side",
+            targetRegions: [.leftHip, .rightHip, .leftGlute, .rightGlute],
+            instructions: [
+                "Sit with both knees at 90 degrees",
+                "Front leg in front, back leg to side",
+                "Lean forward over front leg",
+                "Feel stretch in hip and glute",
+                "Switch sides and repeat"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Monster Walks",
+            type: .resistanceBand,
+            description: "Dynamic hip strengthening with resistance",
+            duration: "3 sets of 10 steps each direction",
+            targetRegions: [.leftHip, .rightHip, .leftGlute, .rightGlute],
+            instructions: [
+                "Place resistance band around ankles",
+                "Slight squat position",
+                "Step sideways maintaining tension",
+                "Keep knees aligned over toes",
+                "Step back to starting position"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Hip Flexor Foam Rolling",
+            type: .foamRolling,
+            description: "Releases tight hip flexors",
+            duration: "2 min per side",
+            targetRegions: [.leftHip, .rightHip],
+            instructions: [
+                "Lie face down with roller under hip",
+                "Support weight on forearms",
+                "Roll from hip crease to mid-thigh",
+                "Turn slightly to hit different angles",
+                "Breathe deeply on tender spots"
+            ]
+        ),
+
         // MARK: Lower Back Exercises
         RehabExercise(
             name: "Cat-Cow Stretch",
@@ -431,6 +536,221 @@ class ExerciseDatabase {
                 "Gentle pull with hand for deeper stretch",
                 "Hold 30 seconds",
                 "Repeat other side, forward, and back"
+            ]
+        ),
+
+        // MARK: Additional Ankle Exercises
+        RehabExercise(
+            name: "Ankle Alphabet",
+            type: .mobilityDrill,
+            description: "Improves ankle range of motion",
+            duration: "2 sets per foot",
+            targetRegions: [.leftAnkle, .rightAnkle],
+            instructions: [
+                "Sit with foot elevated",
+                "Use big toe to 'write' alphabet in air",
+                "Make letters as large as possible",
+                "Go through entire alphabet",
+                "Switch feet and repeat"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Heel Walks",
+            type: .strengthening,
+            description: "Strengthens dorsiflexors and improves ankle stability",
+            duration: "2 sets of 20 steps",
+            targetRegions: [.leftAnkle, .rightAnkle, .leftShin, .rightShin],
+            instructions: [
+                "Stand tall, lift toes up",
+                "Walk forward on heels only",
+                "Keep toes elevated entire time",
+                "Take slow, controlled steps",
+                "Maintain balance throughout"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Single-Leg Calf Raises",
+            type: .strengthening,
+            description: "Advanced calf strengthening",
+            duration: "3 sets of 10 per leg",
+            targetRegions: [.leftCalf, .rightCalf, .leftAnkle, .rightAnkle],
+            instructions: [
+                "Stand on one foot near wall",
+                "Rise up onto toes of standing leg",
+                "Hold for 3 seconds at top",
+                "Lower slowly and controlled",
+                "Complete all reps before switching"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Achilles Tendon Stretch",
+            type: .stretch,
+            description: "Stretches Achilles tendon and calf",
+            duration: "30 sec per leg",
+            targetRegions: [.leftCalf, .rightCalf, .leftAnkle, .rightAnkle],
+            instructions: [
+                "Stand arm's length from wall",
+                "Place hands on wall",
+                "Step one foot back, keep heel down",
+                "Lean forward into wall",
+                "Feel stretch in back leg calf"
+            ]
+        ),
+
+        // MARK: Additional Foot Exercises
+        RehabExercise(
+            name: "Marble Pickups",
+            type: .strengthening,
+            description: "Strengthens intrinsic foot muscles",
+            duration: "3 sets of 10 marbles",
+            targetRegions: [.leftFoot, .rightFoot],
+            instructions: [
+                "Sit with marbles on floor",
+                "Use toes to pick up marbles",
+                "Place marbles in container",
+                "Use only toes, not whole foot",
+                "Complete with both feet"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Plantar Fascia Stretch",
+            type: .stretch,
+            description: "Stretches bottom of foot",
+            duration: "30 sec per foot",
+            targetRegions: [.leftFoot, .rightFoot],
+            instructions: [
+                "Sit and cross ankle over knee",
+                "Grab toes and pull back",
+                "Feel stretch along arch",
+                "Hold stretch for 30 seconds",
+                "Repeat with other foot"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Tennis Ball Foot Roll",
+            type: .foamRolling,
+            description: "Releases plantar fascia tension",
+            duration: "2 min per foot",
+            targetRegions: [.leftFoot, .rightFoot],
+            instructions: [
+                "Sit with tennis ball under foot",
+                "Apply pressure and roll ball",
+                "Roll from heel to toes",
+                "Focus on arch area",
+                "Adjust pressure as needed"
+            ]
+        ),
+
+        // MARK: Additional Shin Exercises
+        RehabExercise(
+            name: "Resistance Band Dorsiflexion",
+            type: .resistanceBand,
+            description: "Strengthens shin muscles",
+            duration: "3 sets of 15",
+            targetRegions: [.leftShin, .rightShin, .leftAnkle, .rightAnkle],
+            instructions: [
+                "Sit with band around foot",
+                "Hold other end of band",
+                "Pull toes toward shin",
+                "Hold for 2 seconds",
+                "Return slowly to start"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Shin Massage",
+            type: .foamRolling,
+            description: "Releases shin muscle tension",
+            duration: "2 min per leg",
+            targetRegions: [.leftShin, .rightShin],
+            instructions: [
+                "Sit with legs extended",
+                "Use hands to massage shin",
+                "Apply firm pressure",
+                "Work from ankle to knee",
+                "Focus on tender areas"
+            ]
+        ),
+
+        // MARK: Additional Knee Exercises
+        RehabExercise(
+            name: "Step-Ups",
+            type: .strengthening,
+            description: "Functional knee strengthening",
+            duration: "3 sets of 10 per leg",
+            targetRegions: [.leftKnee, .rightKnee, .leftQuad, .rightQuad, .leftGlute, .rightGlute],
+            instructions: [
+                "Stand in front of sturdy step",
+                "Step up with one foot",
+                "Bring other foot up to meet it",
+                "Step down with same foot",
+                "Complete all reps before switching"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Straight Leg Raises",
+            type: .strengthening,
+            description: "Strengthens quadriceps without knee stress",
+            duration: "3 sets of 15 per leg",
+            targetRegions: [.leftKnee, .rightKnee, .leftQuad, .rightQuad],
+            instructions: [
+                "Lie on back, one knee bent",
+                "Keep other leg straight",
+                "Lift straight leg to height of bent knee",
+                "Hold for 3 seconds",
+                "Lower slowly, repeat"
+            ]
+        ),
+
+        // MARK: Additional Shoulder/Neck Exercises
+        RehabExercise(
+            name: "Shoulder Rolls",
+            type: .mobilityDrill,
+            description: "Improves shoulder mobility",
+            duration: "10 rolls each direction",
+            targetRegions: [.leftShoulder, .rightShoulder, .neck, .upperBack],
+            instructions: [
+                "Stand or sit with arms at sides",
+                "Lift shoulders up toward ears",
+                "Roll shoulders back and down",
+                "Make large, slow circles",
+                "Reverse direction after 10 reps"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Wall Angels",
+            type: .strengthening,
+            description: "Improves posture and shoulder stability",
+            duration: "3 sets of 15",
+            targetRegions: [.leftShoulder, .rightShoulder, .upperBack],
+            instructions: [
+                "Stand with back against wall",
+                "Arms in 'goal post' position",
+                "Keep arms and back against wall",
+                "Slide arms up and down",
+                "Maintain wall contact throughout"
+            ]
+        ),
+
+        RehabExercise(
+            name: "Doorway Chest Stretch",
+            type: .stretch,
+            description: "Opens chest and improves posture",
+            duration: "30 sec",
+            targetRegions: [.leftShoulder, .rightShoulder, .upperBack],
+            instructions: [
+                "Stand in doorway",
+                "Place forearms on door frame",
+                "Step forward through doorway",
+                "Feel stretch across chest",
+                "Hold for 30 seconds"
             ]
         )
     ]

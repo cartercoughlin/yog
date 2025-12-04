@@ -28,7 +28,7 @@ struct DashboardView: View {
                                 .foregroundStyle(.white)
                                 .padding(.top, 100)
                         } else if let error = viewModel.error {
-                            ErrorView(message: error) {
+                            HealthDataErrorView(message: error) {
                                 Task {
                                     await viewModel.refreshData(injuryViewModel: injuryViewModel)
                                 }
@@ -53,7 +53,13 @@ struct DashboardView: View {
                             .padding(.horizontal)
 
                         if !injuryViewModel.activeInjuries.isEmpty {
-                            InjuryWarningCard(injuryViewModel: injuryViewModel)
+                            NavigationLink {
+                                InjuryTrackerView()
+                                    .environmentObject(injuryViewModel)
+                            } label: {
+                                InjuryWarningCard(injuryViewModel: injuryViewModel)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
 
                             if let trend = viewModel.weeklyTrend {
@@ -78,7 +84,7 @@ struct DashboardView: View {
                             .buttonStyle(PlainButtonStyle())
                         }
                         } else {
-                            EmptyStateView()
+                            HealthDataEmptyStateView()
                         }
                     }
                     .padding(.bottom, 20)
@@ -157,9 +163,9 @@ struct WeeklyTrendCard: View {
             Spacer()
         }
         .padding()
-        .background(
+        .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
         .padding(.horizontal)
     }
@@ -243,28 +249,12 @@ struct MetricsDetailCard: View {
                     .buttonStyle(PlainButtonStyle())
                 }
 
-                if let screenTime = metrics.screenTimeHours {
-                    NavigationLink {
-                        MetricDetailView(
-                            metricType: .screenTime,
-                            historicalMetrics: historicalMetrics
-                        )
-                    } label: {
-                        MetricItem(
-                            icon: "iphone",
-                            label: "Screen Time",
-                            value: String(format: "%.1f hrs", screenTime),
-                            color: .orange
-                        )
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
             }
         }
         .padding()
-        .background(
+        .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
         .padding(.horizontal)
     }
@@ -295,9 +285,9 @@ struct MetricItem: View {
         }
         .frame(maxWidth: .infinity, minHeight: 120)
         .padding()
-        .background(
+        .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color(.systemBackground))
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
         .overlay(alignment: .topTrailing) {
             Image(systemName: "chevron.right")
@@ -345,9 +335,9 @@ struct RecommendationPreviewCard: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
-        .background(
+        .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
         .padding(.horizontal)
     }
@@ -471,18 +461,9 @@ struct InjuryWarningCard: View {
             }
         }
         .padding()
-        .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.secondarySystemBackground))
-
-                VStack {
-                    themeManager.currentTheme.headerGradient
-                        .frame(height: 100)
-                    Spacer()
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
         .padding(.horizontal)
     }

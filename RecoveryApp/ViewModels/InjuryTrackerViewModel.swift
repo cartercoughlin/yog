@@ -76,17 +76,30 @@ class InjuryTrackerViewModel: ObservableObject {
     // MARK: - Generate More Exercises
 
     func generateMoreExercises(for injury: Injury) {
-        guard let index = injuries.firstIndex(where: { $0.id == injury.id }) else { return }
+        guard let index = injuries.firstIndex(where: { $0.id == injury.id }) else { 
+            print("❌ Could not find injury with ID: \(injury.id)")
+            return 
+        }
 
         let currentExerciseNames = injury.suggestedExercises.map { $0.name }
+        print("🔍 Current exercises: \(currentExerciseNames)")
+        
         let additionalExercises = ExerciseDatabase.additionalExercisesFor(
             region: injury.region,
             excludingNames: currentExerciseNames,
             limit: 4
         )
+        
+        print("✨ Generated \(additionalExercises.count) new exercises: \(additionalExercises.map { $0.name })")
+        
+        if additionalExercises.isEmpty {
+            print("ℹ️ No additional exercises available for \(injury.region.rawValue) region")
+        }
 
         injuries[index].suggestedExercises.append(contentsOf: additionalExercises)
         saveInjuries()
+        
+        print("✅ Total exercises now: \(injuries[index].suggestedExercises.count)")
     }
 
     // MARK: - Computed Properties

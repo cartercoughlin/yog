@@ -5,7 +5,6 @@ enum MetricType: String, CaseIterable {
     case restingHeartRate = "Resting HR"
     case sleep = "Sleep"
     case steps = "Steps"
-    case screenTime = "Screen Time"
 
     var icon: String {
         switch self {
@@ -17,8 +16,6 @@ enum MetricType: String, CaseIterable {
             return "bed.double.fill"
         case .steps:
             return "figure.walk"
-        case .screenTime:
-            return "iphone"
         }
     }
 
@@ -32,8 +29,6 @@ enum MetricType: String, CaseIterable {
             return .blue
         case .steps:
             return .green
-        case .screenTime:
-            return .orange
         }
     }
 
@@ -47,8 +42,6 @@ enum MetricType: String, CaseIterable {
             return "hrs"
         case .steps:
             return "steps"
-        case .screenTime:
-            return "hrs"
         }
     }
 
@@ -62,8 +55,6 @@ enum MetricType: String, CaseIterable {
             return "Hours"
         case .steps:
             return "Step Count"
-        case .screenTime:
-            return "Hours"
         }
     }
 }

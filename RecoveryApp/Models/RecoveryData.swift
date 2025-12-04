@@ -15,7 +15,6 @@ struct RecoveryData: Codable, Identifiable {
     let restingHRScore: Double
     let sleepScore: Double
     let trainingLoadScore: Double
-    let screenTimeScore: Double
     let overallScore: Int
     let category: RecoveryCategory
     let metrics: HealthMetrics
@@ -27,7 +26,6 @@ struct RecoveryData: Codable, Identifiable {
         restingHRScore: Double,
         sleepScore: Double,
         trainingLoadScore: Double,
-        screenTimeScore: Double,
         overallScore: Int,
         category: RecoveryCategory,
         metrics: HealthMetrics
@@ -38,7 +36,6 @@ struct RecoveryData: Codable, Identifiable {
         self.restingHRScore = restingHRScore
         self.sleepScore = sleepScore
         self.trainingLoadScore = trainingLoadScore
-        self.screenTimeScore = screenTimeScore
         self.overallScore = overallScore
         self.category = category
         self.metrics = metrics
@@ -49,8 +46,7 @@ struct RecoveryData: Codable, Identifiable {
             ("HRV", hrvScore, "heart.fill"),
             ("Resting HR", restingHRScore, "waveform.path.ecg"),
             ("Sleep", sleepScore, "bed.double.fill"),
-            ("Training Load", trainingLoadScore, "figure.run"),
-            ("Screen Time", screenTimeScore, "iphone")
+            ("Training Load", trainingLoadScore, "figure.run")
         ]
     }
 }
@@ -121,8 +117,7 @@ extension RecoveryData {
             restingHRScore: 75,
             sleepScore: 80,
             trainingLoadScore: 90,
-            screenTimeScore: 70,
-            overallScore: 80,
+            overallScore: 82,
             category: .good,
             metrics: HealthMetrics(
                 date: Date(),
@@ -134,8 +129,7 @@ extension RecoveryData {
                 coreSleepDuration: 14400,
                 workouts: [.sampleRunning],
                 activeEnergyBurned: 650,
-                steps: 12500,
-                screenTimeHours: 3.5
+                steps: 12500
             )
         )
     }

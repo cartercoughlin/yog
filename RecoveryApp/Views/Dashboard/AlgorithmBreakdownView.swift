@@ -123,9 +123,9 @@ struct AlgorithmBreakdownView: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.secondarySystemBackground))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
     }
 
@@ -167,9 +167,9 @@ struct AlgorithmBreakdownView: View {
             }
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.secondarySystemBackground))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
     }
 
@@ -205,9 +205,9 @@ struct AlgorithmBreakdownView: View {
             DataRow(label: "Workouts Today", value: "\(recovery.metrics.workouts.count)")
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.secondarySystemBackground))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
     }
 
@@ -583,9 +583,9 @@ struct ComponentBreakdownCard: View {
             }
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.secondarySystemBackground))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
     }
 }

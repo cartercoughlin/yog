@@ -7,284 +7,421 @@ struct BodyDiagramView: View {
     @State private var selectedRegion: BodyRegion?
 
     var body: some View {
-        GeometryReader { geometry in
-            let width = geometry.size.width
-            let height = geometry.size.height
-            let centerX = width / 2
+        ScrollView {
+            VStack(spacing: 20) {
+                Text("Tap a body region to add or view injuries")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.top)
 
-            ZStack {
-                // Background
-                Color(.systemGray6)
-                    .ignoresSafeArea()
+                // Selected Region Indicator
+                if let selected = selectedRegion {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Selected: \(selected.rawValue)")
+                            .font(.headline)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(10)
+                    .padding(.horizontal)
+                }
 
-                VStack(spacing: 20) {
-                    Text("Tap a body region to add or view injuries")
-                        .font(.subheadline)
+                // Front View
+                VStack(spacing: 10) {
+                    Text("Front View")
+                        .font(.headline)
                         .foregroundStyle(.secondary)
 
-                    // Body diagram
-                    ZStack {
-                        // HEAD & NECK
-                        bodyPart(
-                            shape: Circle(),
-                            x: centerX,
-                            y: 60,
-                            width: 50,
-                            height: 50,
-                            region: .neck,
-                            label: "Neck"
-                        )
-
-                        // SHOULDERS
-                        bodyPart(
-                            shape: Capsule(),
-                            x: centerX - 60,
-                            y: 100,
-                            width: 40,
-                            height: 20,
-                            region: .leftShoulder,
-                            label: "L Shoulder"
-                        )
-
-                        bodyPart(
-                            shape: Capsule(),
-                            x: centerX + 60,
-                            y: 100,
-                            width: 40,
-                            height: 20,
-                            region: .rightShoulder,
-                            label: "R Shoulder"
-                        )
-
-                        // UPPER BACK
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 10),
-                            x: centerX,
-                            y: 130,
-                            width: 80,
-                            height: 40,
-                            region: .upperBack,
-                            label: "Upper Back"
-                        )
-
-                        // CORE
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 10),
-                            x: centerX,
-                            y: 180,
-                            width: 80,
-                            height: 35,
-                            region: .core,
-                            label: "Core"
-                        )
-
-                        // LOWER BACK
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 10),
-                            x: centerX,
-                            y: 225,
-                            width: 80,
-                            height: 35,
-                            region: .lowerBack,
-                            label: "Lower Back"
-                        )
-
-                        // HIPS & GLUTES
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 8),
-                            x: centerX - 40,
-                            y: 270,
-                            width: 35,
-                            height: 40,
-                            region: .leftHip,
-                            label: "L Hip"
-                        )
-
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 8),
-                            x: centerX + 40,
-                            y: 270,
-                            width: 35,
-                            height: 40,
-                            region: .rightHip,
-                            label: "R Hip"
-                        )
-
-                        bodyPart(
-                            shape: Circle(),
-                            x: centerX - 40,
-                            y: 285,
-                            width: 30,
-                            height: 30,
-                            region: .leftGlute,
-                            label: "L Glute"
-                        )
-
-                        bodyPart(
-                            shape: Circle(),
-                            x: centerX + 40,
-                            y: 285,
-                            width: 30,
-                            height: 30,
-                            region: .rightGlute,
-                            label: "R Glute"
-                        )
-
-                        // QUADS
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 15),
-                            x: centerX - 35,
-                            y: 350,
-                            width: 30,
-                            height: 70,
-                            region: .leftQuad,
-                            label: "L Quad"
-                        )
-
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 15),
-                            x: centerX + 35,
-                            y: 350,
-                            width: 30,
-                            height: 70,
-                            region: .rightQuad,
-                            label: "R Quad"
-                        )
-
-                        // HAMSTRINGS (slightly behind quads visually)
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 15),
-                            x: centerX - 38,
-                            y: 350,
-                            width: 25,
-                            height: 70,
-                            region: .leftHamstring,
-                            label: "L Hamstring",
-                            opacity: 0.7
-                        )
-
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 15),
-                            x: centerX + 38,
-                            y: 350,
-                            width: 25,
-                            height: 70,
-                            region: .rightHamstring,
-                            label: "R Hamstring",
-                            opacity: 0.7
-                        )
-
-                        // KNEES
-                        bodyPart(
-                            shape: Circle(),
-                            x: centerX - 35,
-                            y: 395,
-                            width: 25,
-                            height: 25,
-                            region: .leftKnee,
-                            label: "L Knee"
-                        )
-
-                        bodyPart(
-                            shape: Circle(),
-                            x: centerX + 35,
-                            y: 395,
-                            width: 25,
-                            height: 25,
-                            region: .rightKnee,
-                            label: "R Knee"
-                        )
-
-                        // SHINS
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 12),
-                            x: centerX - 35,
-                            y: 450,
-                            width: 20,
-                            height: 60,
-                            region: .leftShin,
-                            label: "L Shin"
-                        )
-
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 12),
-                            x: centerX + 35,
-                            y: 450,
-                            width: 20,
-                            height: 60,
-                            region: .rightShin,
-                            label: "R Shin"
-                        )
-
-                        // CALVES (slightly behind shins)
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 12),
-                            x: centerX - 37,
-                            y: 450,
-                            width: 18,
-                            height: 60,
-                            region: .leftCalf,
-                            label: "L Calf",
-                            opacity: 0.7
-                        )
-
-                        bodyPart(
-                            shape: RoundedRectangle(cornerRadius: 12),
-                            x: centerX + 37,
-                            y: 450,
-                            width: 18,
-                            height: 60,
-                            region: .rightCalf,
-                            label: "R Calf",
-                            opacity: 0.7
-                        )
-
-                        // ANKLES
-                        bodyPart(
-                            shape: Circle(),
-                            x: centerX - 35,
-                            y: 490,
-                            width: 18,
-                            height: 18,
-                            region: .leftAnkle,
-                            label: "L Ankle"
-                        )
-
-                        bodyPart(
-                            shape: Circle(),
-                            x: centerX + 35,
-                            y: 490,
-                            width: 18,
-                            height: 18,
-                            region: .rightAnkle,
-                            label: "R Ankle"
-                        )
-
-                        // FEET
-                        bodyPart(
-                            shape: Capsule(),
-                            x: centerX - 35,
-                            y: 510,
-                            width: 25,
-                            height: 35,
-                            region: .leftFoot,
-                            label: "L Foot"
-                        )
-
-                        bodyPart(
-                            shape: Capsule(),
-                            x: centerX + 35,
-                            y: 510,
-                            width: 25,
-                            height: 35,
-                            region: .rightFoot,
-                            label: "R Foot"
-                        )
-                    }
-                    .frame(height: 550)
+                    frontViewDiagram
                 }
                 .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+
+                // Back View
+                VStack(spacing: 10) {
+                    Text("Back View")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+
+                    backViewDiagram
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
             }
+            .padding()
+        }
+        .background(Color(.systemBackground))
+    }
+
+    private var frontViewDiagram: some View {
+        ZStack {
+            let centerX: CGFloat = 175
+
+            ZStack {
+                // HEAD & NECK
+                bodyPart(
+                    shape: Circle(),
+                    x: centerX,
+                    y: 40,
+                    width: 45,
+                    height: 45,
+                    region: .neck,
+                    label: "Neck"
+                )
+
+                // SHOULDERS
+                bodyPart(
+                    shape: Capsule(),
+                    x: centerX - 55,
+                    y: 75,
+                    width: 38,
+                    height: 18,
+                    region: .leftShoulder,
+                    label: "L Shoulder"
+                )
+
+                bodyPart(
+                    shape: Capsule(),
+                    x: centerX + 55,
+                    y: 75,
+                    width: 38,
+                    height: 18,
+                    region: .rightShoulder,
+                    label: "R Shoulder"
+                )
+
+                // CORE
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 10),
+                    x: centerX,
+                    y: 110,
+                    width: 75,
+                    height: 50,
+                    region: .core,
+                    label: "Core"
+                )
+
+                // HIPS
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 8),
+                    x: centerX - 37,
+                    y: 165,
+                    width: 32,
+                    height: 35,
+                    region: .leftHip,
+                    label: "L Hip"
+                )
+
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 8),
+                    x: centerX + 37,
+                    y: 165,
+                    width: 32,
+                    height: 35,
+                    region: .rightHip,
+                    label: "R Hip"
+                )
+
+                // QUADS
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 12),
+                    x: centerX - 33,
+                    y: 225,
+                    width: 28,
+                    height: 75,
+                    region: .leftQuad,
+                    label: "L Quad"
+                )
+
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 12),
+                    x: centerX + 33,
+                    y: 225,
+                    width: 28,
+                    height: 75,
+                    region: .rightQuad,
+                    label: "R Quad"
+                )
+
+                // KNEES
+                bodyPart(
+                    shape: Circle(),
+                    x: centerX - 33,
+                    y: 275,
+                    width: 26,
+                    height: 26,
+                    region: .leftKnee,
+                    label: "L Knee"
+                )
+
+                bodyPart(
+                    shape: Circle(),
+                    x: centerX + 33,
+                    y: 275,
+                    width: 26,
+                    height: 26,
+                    region: .rightKnee,
+                    label: "R Knee"
+                )
+
+                // SHINS
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 10),
+                    x: centerX - 33,
+                    y: 325,
+                    width: 22,
+                    height: 65,
+                    region: .leftShin,
+                    label: "L Shin"
+                )
+
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 10),
+                    x: centerX + 33,
+                    y: 325,
+                    width: 22,
+                    height: 65,
+                    region: .rightShin,
+                    label: "R Shin"
+                )
+
+                // ANKLES
+                bodyPart(
+                    shape: Circle(),
+                    x: centerX - 33,
+                    y: 370,
+                    width: 20,
+                    height: 20,
+                    region: .leftAnkle,
+                    label: "L Ankle"
+                )
+
+                bodyPart(
+                    shape: Circle(),
+                    x: centerX + 33,
+                    y: 370,
+                    width: 20,
+                    height: 20,
+                    region: .rightAnkle,
+                    label: "R Ankle"
+                )
+
+                // FEET
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 8),
+                    x: centerX - 33,
+                    y: 395,
+                    width: 28,
+                    height: 38,
+                    region: .leftFoot,
+                    label: "L Foot"
+                )
+
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 8),
+                    x: centerX + 33,
+                    y: 395,
+                    width: 28,
+                    height: 38,
+                    region: .rightFoot,
+                    label: "R Foot"
+                )
+            }
+            .frame(height: 430)
+        }
+    }
+
+    private var backViewDiagram: some View {
+        ZStack {
+            let centerX: CGFloat = 175
+
+            ZStack {
+                // NECK
+                bodyPart(
+                    shape: Circle(),
+                    x: centerX,
+                    y: 40,
+                    width: 45,
+                    height: 45,
+                    region: .neck,
+                    label: "Neck"
+                )
+
+                // SHOULDERS (back)
+                bodyPart(
+                    shape: Capsule(),
+                    x: centerX - 55,
+                    y: 75,
+                    width: 38,
+                    height: 18,
+                    region: .leftShoulder,
+                    label: "L Shoulder"
+                )
+
+                bodyPart(
+                    shape: Capsule(),
+                    x: centerX + 55,
+                    y: 75,
+                    width: 38,
+                    height: 18,
+                    region: .rightShoulder,
+                    label: "R Shoulder"
+                )
+
+                // UPPER BACK
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 10),
+                    x: centerX,
+                    y: 105,
+                    width: 75,
+                    height: 35,
+                    region: .upperBack,
+                    label: "Upper Back"
+                )
+
+                // LOWER BACK
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 10),
+                    x: centerX,
+                    y: 145,
+                    width: 75,
+                    height: 35,
+                    region: .lowerBack,
+                    label: "Lower Back"
+                )
+
+                // GLUTES
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 10),
+                    x: centerX - 37,
+                    y: 185,
+                    width: 32,
+                    height: 35,
+                    region: .leftGlute,
+                    label: "L Glute"
+                )
+
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 10),
+                    x: centerX + 37,
+                    y: 185,
+                    width: 32,
+                    height: 35,
+                    region: .rightGlute,
+                    label: "R Glute"
+                )
+
+                // HAMSTRINGS
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 12),
+                    x: centerX - 33,
+                    y: 235,
+                    width: 28,
+                    height: 70,
+                    region: .leftHamstring,
+                    label: "L Hamstring"
+                )
+
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 12),
+                    x: centerX + 33,
+                    y: 235,
+                    width: 28,
+                    height: 70,
+                    region: .rightHamstring,
+                    label: "R Hamstring"
+                )
+
+                // KNEES (back)
+                bodyPart(
+                    shape: Circle(),
+                    x: centerX - 33,
+                    y: 282,
+                    width: 24,
+                    height: 24,
+                    region: .leftKnee,
+                    label: "L Knee"
+                )
+
+                bodyPart(
+                    shape: Circle(),
+                    x: centerX + 33,
+                    y: 282,
+                    width: 24,
+                    height: 24,
+                    region: .rightKnee,
+                    label: "R Knee"
+                )
+
+                // CALVES
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 10),
+                    x: centerX - 33,
+                    y: 330,
+                    width: 24,
+                    height: 60,
+                    region: .leftCalf,
+                    label: "L Calf"
+                )
+
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 10),
+                    x: centerX + 33,
+                    y: 330,
+                    width: 24,
+                    height: 60,
+                    region: .rightCalf,
+                    label: "R Calf"
+                )
+
+                // ANKLES (back)
+                bodyPart(
+                    shape: Circle(),
+                    x: centerX - 33,
+                    y: 372,
+                    width: 20,
+                    height: 20,
+                    region: .leftAnkle,
+                    label: "L Ankle"
+                )
+
+                bodyPart(
+                    shape: Circle(),
+                    x: centerX + 33,
+                    y: 372,
+                    width: 20,
+                    height: 20,
+                    region: .rightAnkle,
+                    label: "R Ankle"
+                )
+
+                // FEET (back)
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 8),
+                    x: centerX - 33,
+                    y: 397,
+                    width: 28,
+                    height: 38,
+                    region: .leftFoot,
+                    label: "L Foot"
+                )
+
+                bodyPart(
+                    shape: RoundedRectangle(cornerRadius: 8),
+                    x: centerX + 33,
+                    y: 397,
+                    width: 28,
+                    height: 38,
+                    region: .rightFoot,
+                    label: "R Foot"
+                )
+            }
+            .frame(height: 430)
         }
     }
 
@@ -313,7 +450,7 @@ struct BodyDiagramView: View {
                     .frame(width: width, height: height)
                     .overlay(
                         shape
-                            .stroke(strokeColor(for: region), lineWidth: 2)
+                            .stroke(strokeColor(for: region), lineWidth: selectedRegion == region ? 4 : 2)
                             .frame(width: width, height: height)
                     )
 
@@ -322,6 +459,13 @@ struct BodyDiagramView: View {
                         .font(.caption)
                         .foregroundStyle(.white)
                 }
+
+                // Add checkmark for selected region
+                if selectedRegion == region && !hasInjury {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                }
             }
         }
         .position(x: x, y: y)
@@ -329,14 +473,21 @@ struct BodyDiagramView: View {
     }
 
     private func fillColor(for region: BodyRegion, hasInjury: Bool, severity: InjurySeverity?) -> Color {
+        if selectedRegion == region {
+            // Selected region gets bright green highlight
+            return Color.green.opacity(0.5)
+        }
         if hasInjury, let severity = severity {
             return severity.color.opacity(0.7)
         }
-        return selectedRegion == region ? Color.blue.opacity(0.3) : Color.blue.opacity(0.15)
+        return Color.blue.opacity(0.15)
     }
 
     private func strokeColor(for region: BodyRegion) -> Color {
-        selectedRegion == region ? .blue : .gray.opacity(0.5)
+        if selectedRegion == region {
+            return .green
+        }
+        return .gray.opacity(0.5)
     }
 }
 

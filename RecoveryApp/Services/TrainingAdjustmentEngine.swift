@@ -29,9 +29,15 @@ class TrainingAdjustmentEngine {
         }
     }
 
+    enum Trend {
+        case improving
+        case stable
+        case declining
+    }
+
     struct WorkoutAdjustment {
-        let originalType: WorkoutType
-        let suggestedType: WorkoutType
+        let originalType: TrainingWorkoutType
+        let suggestedType: TrainingWorkoutType
         let reason: String
         let distanceModification: Double?  // Percentage (e.g., 0.8 for 80%)
     }
@@ -145,7 +151,7 @@ class TrainingAdjustmentEngine {
         case .moderate:
             // Convert quality workouts to easier alternatives
             for workout in qualityWorkouts {
-                let suggestedType: WorkoutType
+                let suggestedType: TrainingWorkoutType
                 let reason: String
 
                 switch workout.type {

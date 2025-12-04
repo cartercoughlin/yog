@@ -25,6 +25,60 @@ class HealthKitManager: ObservableObject {
         HKQuantityType(.respiratoryRate)
     ]
 
+    init() {
+        // Check authorization status on initialization
+        checkAuthorizationStatus()
+    }
+
+    /// Check if HealthKit access has been granted
+    /// Note: Due to privacy, authorizationStatus doesn't reliably indicate if read access was granted.
+    /// We attempt to query data to verify actual access.
+    func checkAuthorizationStatus() {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            isAuthorized = false
+            return
+        }
+
+        // Attempt to query HRV data to verify we have actual read access
+        Task {
+            do {
+                let hrvType = HKQuantityType(.heartRateVariabilitySDNN)
+                let predicate = HKQuery.predicateForSamples(
+                    withStart: Date().addingTimeInterval(-86400 * 7), // Last 7 days
+                    end: Date(),
+                    options: .strictStartDate
+                )
+
+                let query = HKSampleQuery(
+                    sampleType: hrvType,
+                    predicate: predicate,
+                    limit: 1,
+                    sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]
+                ) { [weak self] _, samples, error in
+                    DispatchQueue.main.async {
+                        // If we get samples or no error, we likely have access
+                        // Even if samples is empty, if there's no permission error, we have access
+                        if error == nil {
+                            self?.isAuthorized = true
+                        } else {
+                            // Check if it's a permission error
+                            let nsError = error as NSError?
+                            if nsError?.code == HKError.errorAuthorizationNotDetermined.rawValue ||
+                               nsError?.code == HKError.errorAuthorizationDenied.rawValue {
+                                self?.isAuthorized = false
+                            } else {
+                                // Other errors don't mean we lack permission
+                                self?.isAuthorized = true
+                            }
+                        }
+                    }
+                }
+
+                healthStore.execute(query)
+            }
+        }
+    }
+
     func requestAuthorization() async throws {
         guard HKHealthStore.isHealthDataAvailable() else {
             print("❌ HealthKit is not available on this device")
@@ -33,8 +87,10 @@ class HealthKitManager: ObservableObject {
 
         print("🔐 Requesting HealthKit authorization...")
         try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
+
+        // Re-check authorization status after request
         await MainActor.run {
-            self.isAuthorized = true
+            self.checkAuthorizationStatus()
         }
         print("✅ HealthKit authorization granted")
     }
@@ -47,13 +103,22 @@ class HealthKitManager: ObservableObject {
         async let hrv = fetchHRV(for: date)
         async let restingHR = fetchRestingHeartRate(for: date)
         async let sleepData = fetchSleepData(for: date)
-        async let workouts = fetchWorkouts(startDate: startOfDay, endDate: endOfDay)
         async let activeEnergy = fetchActiveEnergy(startDate: startOfDay, endDate: endOfDay)
         async let steps = fetchSteps(startDate: startOfDay, endDate: endOfDay)
         async let screenTime = fetchScreenTime(for: date)
 
-        let (hrvValue, restingHRValue, sleep, workoutData, energy, stepCount, screenTimeHours) = try await (
-            hrv, restingHR, sleepData, workouts, activeEnergy, steps, screenTime
+        async let dateOfBirth = fetchDateOfBirth()
+
+        let (hrvValue, restingHRValue, sleep, energy, stepCount, dob) = try await (
+            hrv, restingHR, sleepData, activeEnergy, steps, dateOfBirth
+        )
+
+        // Fetch workouts with context about resting HR and age for accurate training stress
+        let workoutData = try await fetchWorkouts(
+            startDate: startOfDay,
+            endDate: endOfDay,
+            restingHR: restingHRValue,
+            dateOfBirth: dob
         )
 
         return HealthMetrics(
@@ -80,6 +145,25 @@ class HealthKitManager: ObservableObject {
         var currentDate = startDate
 
         while currentDate <= endDate {
+            do {
+                let dayMetrics = try await fetchHealthMetrics(for: currentDate)
+                metrics.append(dayMetrics)
+            } catch {
+                print("Error fetching metrics for \(currentDate): \(error)")
+            }
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
+        }
+
+        return metrics
+    }
+
+    func fetchMetricsForDateRange(startDate: Date, endDate: Date) async throws -> [HealthMetrics] {
+        let calendar = Calendar.current
+        var metrics: [HealthMetrics] = []
+        var currentDate = calendar.startOfDay(for: startDate)
+        let finalDate = calendar.startOfDay(for: endDate)
+
+        while currentDate <= finalDate {
             do {
                 let dayMetrics = try await fetchHealthMetrics(for: currentDate)
                 metrics.append(dayMetrics)
@@ -454,7 +538,7 @@ class HealthKitManager: ObservableObject {
         )
     }
 
-    private func fetchWorkouts(startDate: Date, endDate: Date) async throws -> [WorkoutData] {
+    private func fetchWorkouts(startDate: Date, endDate: Date, restingHR: Int? = nil, dateOfBirth: Date? = nil) async throws -> [WorkoutData] {
         let workoutType = HKObjectType.workoutType()
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
 
@@ -484,6 +568,37 @@ class HealthKitManager: ObservableObject {
             let avgHR = try? await fetchAverageHeartRate(for: workout)
             let maxHR = try? await fetchMaxHeartRate(for: workout)
 
+            // Calculate training stress using heart rate if available
+            let durationMinutes = workout.duration / 60.0
+            let trainingStress: Double
+            if let avgHR = avgHR {
+                // Use actual resting HR from HealthKit, or fallback to 60
+                let actualRestingHR = Double(restingHR ?? 60)
+
+                // Calculate max HR based on age if available, otherwise use standard formula
+                let estimatedMaxHR: Double
+                if let dob = dateOfBirth {
+                    let age = Calendar.current.dateComponents([.year], from: dob, to: Date()).year ?? 30
+                    // Use more accurate Tanaka formula: 208 - (0.7 × age)
+                    estimatedMaxHR = 208.0 - (0.7 * Double(age))
+                } else {
+                    // Fallback to standard assumption
+                    estimatedMaxHR = 190.0
+                }
+
+                // Also consider the max HR from this specific workout
+                let workoutMaxHR = maxHR != nil ? Double(maxHR!) : estimatedMaxHR
+                let effectiveMaxHR = min(workoutMaxHR, estimatedMaxHR + 10) // Cap at formula + 10 for safety
+
+                // Heart rate reserve formula: intensity = (avgHR - restingHR) / (maxHR - restingHR)
+                let hrReserve = effectiveMaxHR - actualRestingHR
+                let intensity = max(0, min(1, (Double(avgHR) - actualRestingHR) / hrReserve)) // Clamp 0-1
+                trainingStress = durationMinutes * intensity * intensity * 100
+            } else {
+                // Fallback: use duration with moderate intensity assumption
+                trainingStress = durationMinutes * 0.5
+            }
+
             let data = WorkoutData(
                 date: workout.startDate,
                 type: WorkoutType.from(hkWorkoutType: workout.workoutActivityType),
@@ -492,12 +607,24 @@ class HealthKitManager: ObservableObject {
                 averageHeartRate: avgHR,
                 maxHeartRate: maxHR,
                 caloriesBurned: workout.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie()),
-                trainingStress: 0
+                trainingStress: trainingStress,
+                workout: workout
             )
+
             workoutData.append(data)
         }
 
         return workoutData
+    }
+
+    private func fetchDateOfBirth() async throws -> Date? {
+        do {
+            let dateOfBirthComponents = try healthStore.dateOfBirthComponents()
+            return Calendar.current.date(from: dateOfBirthComponents)
+        } catch {
+            print("   ⚠️ Could not fetch date of birth: \(error)")
+            return nil
+        }
     }
 
     private func fetchAverageHeartRate(for workout: HKWorkout) async throws -> Int? {

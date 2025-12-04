@@ -1,54 +1,40 @@
 import SwiftUI
 
 struct InjuryTrackerView: View {
-    @StateObject private var viewModel = InjuryTrackerViewModel()
+    @EnvironmentObject var viewModel: InjuryTrackerViewModel
+    @EnvironmentObject var themeManager: ThemeManager
     @State private var showAddInjury = false
     @State private var selectedRegion: BodyRegion?
     @State private var showBodyDiagram = false
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Summary Card
-                    summaryCard
+            ZStack {
+                // Clean background
+                Color(.systemBackground)
+                    .ignoresSafeArea()
 
-                    // Body Diagram Button
-                    Button {
-                        showBodyDiagram = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "figure.stand")
-                                .font(.title2)
-                            Text("View Body Diagram")
-                                .font(.headline)
-                            Spacer()
-                            Image(systemName: "chevron.right")
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Summary Card
+                        summaryCard
+
+                        // Active Injuries
+                        if !viewModel.activeInjuries.isEmpty {
+                            activeInjuriesSection
                         }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.blue.opacity(0.1))
-                        )
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .padding(.horizontal)
 
-                    // Active Injuries
-                    if !viewModel.activeInjuries.isEmpty {
-                        activeInjuriesSection
-                    }
+                        // Resolved Injuries
+                        if !viewModel.resolvedInjuries.isEmpty {
+                            resolvedInjuriesSection
+                        }
 
-                    // Resolved Injuries
-                    if !viewModel.resolvedInjuries.isEmpty {
-                        resolvedInjuriesSection
+                        if viewModel.injuries.isEmpty {
+                            emptyState
+                        }
                     }
-
-                    if viewModel.injuries.isEmpty {
-                        emptyState
-                    }
+                    .padding(.bottom)
                 }
-                .padding(.bottom)
             }
             .navigationTitle("Injury Tracker")
             .toolbar {
@@ -128,8 +114,17 @@ struct InjuryTrackerView: View {
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.secondarySystemBackground))
+
+                VStack {
+                    themeManager.currentTheme.headerGradient
+                        .frame(height: 80)
+                    Spacer()
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
         )
         .padding(.horizontal)
     }
@@ -197,6 +192,7 @@ struct InjuryTrackerView: View {
 
 struct InjuryRow: View {
     let injury: Injury
+    @EnvironmentObject var themeManager: ThemeManager
 
     var body: some View {
         HStack(spacing: 12) {
@@ -244,8 +240,17 @@ struct InjuryRow: View {
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color(.systemBackground))
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(.systemBackground))
+
+                VStack {
+                    themeManager.currentTheme.headerGradient
+                        .frame(height: 50)
+                    Spacer()
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
         )
         .padding(.horizontal)
     }

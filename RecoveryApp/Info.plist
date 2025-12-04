@@ -27,5 +27,10 @@
     <string>1</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0.0</string>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>com.garmin.connect.mobile</string>
+        <string>strava</string>
+    </array>
 </dict>
 </plist>

@@ -57,14 +57,16 @@ enum TrainingPhase: String, CaseIterable {
     }
 }
 
-// MARK: - Workout Type
-enum WorkoutType: String, CaseIterable {
+// MARK: - Training Workout Type
+enum TrainingWorkoutType: String, CaseIterable {
     case easy = "Easy"
     case long = "Long Run"
     case marathon = "Marathon Pace"
     case threshold = "Threshold"
     case interval = "Interval"
     case repetition = "Repetition"
+    case hill = "Hill Repeats"
+    case racePace = "Race Pace"
     case rest = "Rest"
 
     var abbreviation: String {
@@ -75,6 +77,8 @@ enum WorkoutType: String, CaseIterable {
         case .threshold: return "T"
         case .interval: return "I"
         case .repetition: return "R"
+        case .hill: return "H"
+        case .racePace: return "RP"
         case .rest: return "Rest"
         }
     }
@@ -84,7 +88,7 @@ enum WorkoutType: String, CaseIterable {
         case .easy:
             return "Comfortable pace for recovery and base building"
         case .long:
-            return "Extended easy run for endurance"
+            return "Extended run for endurance, often with pace work"
         case .marathon:
             return "Goal marathon race pace"
         case .threshold:
@@ -93,6 +97,10 @@ enum WorkoutType: String, CaseIterable {
             return "VO2max pace with equal rest periods"
         case .repetition:
             return "Fast pace for speed and neuromuscular development"
+        case .hill:
+            return "Uphill repeats for strength and power"
+        case .racePace:
+            return "Goal race pace sustained effort"
         case .rest:
             return "Recovery day, no running"
         }
@@ -100,7 +108,7 @@ enum WorkoutType: String, CaseIterable {
 
     var isQuality: Bool {
         switch self {
-        case .threshold, .interval, .repetition, .long:
+        case .threshold, .interval, .repetition, .long, .hill, .racePace:
             return true
         default:
             return false
@@ -112,33 +120,69 @@ enum WorkoutType: String, CaseIterable {
 struct DailyWorkout: Identifiable, Codable {
     let id: UUID
     let date: Date
-    let type: WorkoutType
+    let type: TrainingWorkoutType
     let distanceInMiles: Double?
+    let durationInMinutes: Int?  // Optional time-based alternative
     let paceMinPerMile: String?  // Format: "8:30"
     let description: String
     let isCompleted: Bool
+    let linkedWorkout: LinkedWorkout?  // Link to actual HealthKit workout
 
     init(
         id: UUID = UUID(),
         date: Date,
-        type: WorkoutType,
+        type: TrainingWorkoutType,
         distanceInMiles: Double? = nil,
+        durationInMinutes: Int? = nil,
         paceMinPerMile: String? = nil,
         description: String,
-        isCompleted: Bool = false
+        isCompleted: Bool = false,
+        linkedWorkout: LinkedWorkout? = nil
     ) {
         self.id = id
         self.date = date
         self.type = type
         self.distanceInMiles = distanceInMiles
+        self.durationInMinutes = durationInMinutes
         self.paceMinPerMile = paceMinPerMile
         self.description = description
         self.isCompleted = isCompleted
+        self.linkedWorkout = linkedWorkout
     }
 
     var formattedDistance: String {
-        guard let distance = distanceInMiles else { return "–" }
-        return String(format: "%.1f mi", distance)
+        if let distance = distanceInMiles {
+            return String(format: "%.0f mi", distance)
+        } else if let duration = durationInMinutes {
+            return "\(duration) min"
+        }
+        return "–"
+    }
+}
+
+// MARK: - Linked Workout
+struct LinkedWorkout: Codable, Identifiable {
+    let id: UUID
+    let workoutId: String  // HealthKit workout UUID
+    let actualDistance: Double  // Miles
+    let actualDuration: TimeInterval  // Seconds
+    let actualPace: String  // Min/mile
+    let completedDate: Date
+
+    var formattedDistance: String {
+        String(format: "%.2f mi", actualDistance)
+    }
+
+    var formattedDuration: String {
+        let hours = Int(actualDuration) / 3600
+        let minutes = (Int(actualDuration) % 3600) / 60
+        let seconds = Int(actualDuration) % 60
+
+        if hours > 0 {
+            return String(format: "%dh %dm", hours, minutes)
+        } else {
+            return String(format: "%dm %ds", minutes, seconds)
+        }
     }
 }
 
@@ -149,23 +193,30 @@ struct WeeklyPlan: Identifiable, Codable {
     let phase: TrainingPhase
     let workouts: [DailyWorkout]
     let startDate: Date
+    let isStepbackWeek: Bool  // Every 3rd week for recovery
 
     init(
         id: UUID = UUID(),
         weekNumber: Int,
         phase: TrainingPhase,
         workouts: [DailyWorkout],
-        startDate: Date
+        startDate: Date,
+        isStepbackWeek: Bool = false
     ) {
         self.id = id
         self.weekNumber = weekNumber
         self.phase = phase
         self.workouts = workouts
         self.startDate = startDate
+        self.isStepbackWeek = isStepbackWeek
     }
 
     var totalMileage: Double {
         workouts.compactMap { $0.distanceInMiles }.reduce(0, +)
+    }
+
+    var actualMileage: Double {
+        workouts.compactMap { $0.linkedWorkout?.actualDistance }.reduce(0, +)
     }
 
     var endDate: Date {
@@ -174,6 +225,10 @@ struct WeeklyPlan: Identifiable, Codable {
 
     var qualityWorkouts: [DailyWorkout] {
         workouts.filter { $0.type.isQuality }
+    }
+
+    var runningWorkouts: [DailyWorkout] {
+        workouts.filter { $0.type != .rest }
     }
 
     var completionPercentage: Double {
@@ -186,18 +241,20 @@ struct WeeklyPlan: Identifiable, Codable {
 // MARK: - Training Plan
 struct TrainingPlan: Identifiable, Codable {
     let id: UUID
+    let name: String
     let raceDistance: RaceDistance
     let raceDate: Date
     let goalTimeInSeconds: TimeInterval  // Goal finish time
     let minWeeklyMileage: Double
     let maxWeeklyMileage: Double
     let weeks: [WeeklyPlan]
-    let vdot: Double  // Jack Daniels VDOT value
+    let vdot: Double  // VDOT value for pace calculations
     let allowRecoveryAdjustments: Bool
     let createdDate: Date
 
     init(
         id: UUID = UUID(),
+        name: String,
         raceDistance: RaceDistance,
         raceDate: Date,
         goalTimeInSeconds: TimeInterval,
@@ -209,6 +266,7 @@ struct TrainingPlan: Identifiable, Codable {
         createdDate: Date = Date()
     ) {
         self.id = id
+        self.name = name
         self.raceDistance = raceDistance
         self.raceDate = raceDate
         self.goalTimeInSeconds = goalTimeInSeconds
@@ -259,12 +317,12 @@ struct TrainingPlan: Identifiable, Codable {
     }
 }
 
-// MARK: - Workout Type Codable Extension
-extension WorkoutType: Codable {
+// MARK: - Training Workout Type Codable Extension
+extension TrainingWorkoutType: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let rawValue = try container.decode(String.self)
-        self = WorkoutType(rawValue: rawValue) ?? .easy
+        self = TrainingWorkoutType(rawValue: rawValue) ?? .easy
     }
 }
 

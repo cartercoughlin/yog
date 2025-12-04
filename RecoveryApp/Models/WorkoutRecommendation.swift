@@ -50,6 +50,7 @@ struct Exercise: Identifiable, Codable {
     let restPeriod: TimeInterval
     let notes: String?
     let videoURL: String?
+    let animationName: String?
 
     init(
         id: UUID = UUID(),
@@ -58,7 +59,8 @@ struct Exercise: Identifiable, Codable {
         reps: String,
         restPeriod: TimeInterval = 60,
         notes: String? = nil,
-        videoURL: String? = nil
+        videoURL: String? = nil,
+        animationName: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -67,6 +69,7 @@ struct Exercise: Identifiable, Codable {
         self.restPeriod = restPeriod
         self.notes = notes
         self.videoURL = videoURL
+        self.animationName = animationName
     }
 
     var restInSeconds: Int {

@@ -9,38 +9,40 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 0
+    @StateObject private var injuryViewModel = InjuryTrackerViewModel()
+    @StateObject private var themeManager = ThemeManager()
 
     var body: some View {
         TabView(selection: $selectedTab) {
             DashboardView()
+                .environmentObject(injuryViewModel)
+                .environmentObject(themeManager)
                 .tabItem {
                     Label("Recovery", systemImage: "heart.fill")
                 }
                 .tag(0)
 
             HistoryView()
+                .environmentObject(themeManager)
                 .tabItem {
                     Label("History", systemImage: "chart.line.uptrend.xyaxis")
                 }
                 .tag(1)
 
             TrainingPlanView()
+                .environmentObject(themeManager)
                 .tabItem {
                     Label("Training", systemImage: "figure.run")
                 }
                 .tag(2)
 
             InjuryTrackerView()
+                .environmentObject(injuryViewModel)
+                .environmentObject(themeManager)
                 .tabItem {
-                    Label("Injuries", systemImage: "bandage")
+                    Label("Injuries", systemImage: "bandage.fill")
                 }
                 .tag(3)
-
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape.fill")
-                }
-                .tag(4)
         }
     }
 }

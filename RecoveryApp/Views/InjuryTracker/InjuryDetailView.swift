@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct InjuryDetailView: View {
-    let injury: Injury
+    let injuryId: UUID
     @ObservedObject var viewModel: InjuryTrackerViewModel
 
     @State private var showExerciseDetail: RehabExercise?
@@ -9,30 +9,46 @@ struct InjuryDetailView: View {
     @State private var isEditing = false
 
     init(injury: Injury, viewModel: InjuryTrackerViewModel) {
-        self.injury = injury
+        self.injuryId = injury.id
         self.viewModel = viewModel
         _editedNotes = State(initialValue: injury.notes)
     }
 
+    private var injury: Injury? {
+        viewModel.injuries.first { $0.id == injuryId }
+    }
+
     var body: some View {
+        Group {
+            if let injury = injury {
+                injuryContent(injury: injury)
+            } else {
+                Text("Injury not found")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func injuryContent(injury: Injury) -> some View {
         ScrollView {
             VStack(spacing: 20) {
                 // Injury Header
-                injuryHeader
+                injuryHeader(injury: injury)
 
                 // Notes Section
-                notesSection
+                notesSection(injury: injury)
 
                 // Rehab Exercises
-                exercisesSection
+                exercisesSection(injury: injury)
 
                 // Generate More Button
                 if injury.suggestedExercises.count < 15 {
-                    generateMoreButton
+                    generateMoreButton(injury: injury)
                 }
 
                 // Action Buttons
-                actionButtons
+                actionButtons(injury: injury)
             }
             .padding()
         }
@@ -47,7 +63,7 @@ struct InjuryDetailView: View {
         }
     }
 
-    private var injuryHeader: some View {
+    private func injuryHeader(injury: Injury) -> some View {
         VStack(spacing: 16) {
             HStack {
                 Image(systemName: injury.severity.icon)
@@ -96,7 +112,7 @@ struct InjuryDetailView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var notesSection: some View {
+    private func notesSection(injury: Injury) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Notes")
@@ -135,7 +151,7 @@ struct InjuryDetailView: View {
         )
     }
 
-    private var exercisesSection: some View {
+    private func exercisesSection(injury: Injury) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Rehab Exercises")
                 .font(.headline)
@@ -148,7 +164,7 @@ struct InjuryDetailView: View {
                 Button {
                     showExerciseDetail = exercise
                 } label: {
-                    ExerciseCard(
+                    RehabExerciseCard(
                         exercise: exercise,
                         rating: injury.ratingForExercise(exercise.id)
                     )
@@ -158,7 +174,7 @@ struct InjuryDetailView: View {
         }
     }
 
-    private var generateMoreButton: some View {
+    private func generateMoreButton(injury: Injury) -> some View {
         Button {
             viewModel.generateMoreExercises(for: injury)
         } label: {
@@ -177,7 +193,7 @@ struct InjuryDetailView: View {
         }
     }
 
-    private var actionButtons: some View {
+    private func actionButtons(injury: Injury) -> some View {
         VStack(spacing: 12) {
             if injury.isActive {
                 Button {
@@ -228,7 +244,7 @@ struct InjuryDetailView: View {
     }
 }
 
-struct ExerciseCard: View {
+struct RehabExerciseCard: View {
     let exercise: RehabExercise
     let rating: ExerciseRating?
 

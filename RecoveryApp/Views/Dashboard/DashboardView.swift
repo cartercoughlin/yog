@@ -8,39 +8,61 @@
 import SwiftUI
 
 struct DashboardView: View {
+    @EnvironmentObject var injuryViewModel: InjuryTrackerViewModel
+    @EnvironmentObject var themeManager: ThemeManager
     @StateObject private var viewModel = DashboardViewModel()
     @State private var showAlgorithmBreakdown = false
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    if viewModel.isLoading {
-                        ProgressView("Loading your recovery data...")
-                            .padding(.top, 100)
-                    } else if let error = viewModel.error {
-                        ErrorView(message: error) {
-                            Task {
-                                await viewModel.refreshData()
+            ZStack {
+                // Subtle background color
+                Color(.systemBackground)
+                    .ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 20) {
+                        if viewModel.isLoading {
+                            ProgressView("Loading your recovery data...")
+                                .foregroundStyle(.white)
+                                .padding(.top, 100)
+                        } else if let error = viewModel.error {
+                            ErrorView(message: error) {
+                                Task {
+                                    await viewModel.refreshData(injuryViewModel: injuryViewModel)
+                                }
                             }
-                        }
-                    } else if let recovery = viewModel.todayRecovery {
-                        RecoveryScoreCard(recovery: recovery)
+                        } else if let recovery = viewModel.todayRecovery {
+                            RecoveryScoreCard(recovery: recovery)
+                                .environmentObject(themeManager)
+                                .onAppear {
+                                    themeManager.updateTheme(score: recovery.overallScore)
+                                }
+                                .onChange(of: recovery.overallScore) { _, newScore in
+                                    themeManager.updateTheme(score: newScore)
+                                }
 
-                        Button {
-                            showAlgorithmBreakdown = true
-                        } label: {
-                            Label("How is this calculated?", systemImage: "info.circle")
-                                .font(.subheadline)
-                        }
-                        .padding(.horizontal)
+                            Button {
+                                showAlgorithmBreakdown = true
+                            } label: {
+                                Label("How is this calculated?", systemImage: "info.circle")
+                                    .font(.subheadline)
+                                    .foregroundStyle(themeManager.currentTheme.primaryTextColor)
+                            }
+                            .padding(.horizontal)
 
-                        if let trend = viewModel.weeklyTrend {
-                            WeeklyTrendCard(
-                                average: trend.average,
-                                trend: trend.trend
-                            )
+                        if !injuryViewModel.activeInjuries.isEmpty {
+                            InjuryWarningCard(injuryViewModel: injuryViewModel)
                         }
+
+                            if let trend = viewModel.weeklyTrend {
+                                WeeklyTrendCard(
+                                    average: trend.average,
+                                    trend: trend.trend
+                                )
+                                .environmentObject(themeManager)
+                            }
 
                         MetricsDetailCard(
                             metrics: recovery.metrics,
@@ -55,21 +77,30 @@ struct DashboardView: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                         }
-                    } else {
-                        EmptyStateView()
+                        } else {
+                            EmptyStateView()
+                        }
                     }
+                    .padding(.bottom, 20)
                 }
-                .padding(.bottom, 20)
             }
             .navigationTitle("Recovery")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 12) {
                         WeatherWidget()
 
                         Button {
                             Task {
-                                await viewModel.refreshData()
+                                await viewModel.refreshData(injuryViewModel: injuryViewModel)
                             }
                         } label: {
                             Image(systemName: "arrow.clockwise")
@@ -79,7 +110,7 @@ struct DashboardView: View {
                 }
             }
             .task {
-                await viewModel.loadData()
+                await viewModel.loadData(injuryViewModel: injuryViewModel)
             }
             .sheet(isPresented: $showAlgorithmBreakdown) {
                 if let recovery = viewModel.todayRecovery {
@@ -89,6 +120,9 @@ struct DashboardView: View {
                     )
                 }
             }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+            }
         }
     }
 }
@@ -96,6 +130,7 @@ struct DashboardView: View {
 struct WeeklyTrendCard: View {
     let average: Double
     let trend: Trend
+    @EnvironmentObject var themeManager: ThemeManager
 
     var body: some View {
         HStack {
@@ -110,7 +145,7 @@ struct WeeklyTrendCard: View {
                         .fontWeight(.bold)
 
                     HStack(spacing: 4) {
-        Image(systemName: trend.icon)
+                        Image(systemName: trend.icon)
                             .font(.caption)
                         Text(trend.description)
                             .font(.caption)
@@ -246,21 +281,30 @@ struct MetricItem: View {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundStyle(color)
+                .frame(height: 28)
 
             Text(value)
                 .font(.title3)
                 .fontWeight(.semibold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
 
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 120)
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 10)
                 .fill(Color(.systemBackground))
         )
+        .overlay(alignment: .topTrailing) {
+            Image(systemName: "chevron.right")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .padding(8)
+        }
     }
 }
 
@@ -352,6 +396,95 @@ struct EmptyStateView: View {
                 .padding(.horizontal)
         }
         .padding(.top, 100)
+    }
+}
+
+struct InjuryWarningCard: View {
+    @ObservedObject var injuryViewModel: InjuryTrackerViewModel
+    @EnvironmentObject var themeManager: ThemeManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "bandage.fill")
+                    .foregroundStyle(.orange)
+                    .font(.title2)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Active Injuries")
+                        .font(.headline)
+                    Text("\(injuryViewModel.injuryCount) active")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if injuryViewModel.totalRecoveryImpact > 0 {
+                    VStack(alignment: .trailing) {
+                        Text("-\(Int(injuryViewModel.totalRecoveryImpact))")
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.red)
+                        Text("score impact")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(injuryViewModel.activeInjuries.prefix(3))) { injury in
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(injury.severity.color)
+                            .frame(width: 8, height: 8)
+
+                        Text(injury.region.rawValue)
+                            .font(.subheadline)
+
+                        Text("•")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Text(injury.severity.rawValue)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Text(injury.name)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                    }
+                }
+
+                if injuryViewModel.activeInjuries.count > 3 {
+                    Text("+\(injuryViewModel.activeInjuries.count - 3) more")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 16)
+                }
+            }
+        }
+        .padding()
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.secondarySystemBackground))
+
+                VStack {
+                    themeManager.currentTheme.headerGradient
+                        .frame(height: 100)
+                    Spacer()
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        )
+        .padding(.horizontal)
     }
 }
 

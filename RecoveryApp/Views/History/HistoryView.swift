@@ -10,27 +10,35 @@ import Charts
 
 struct HistoryView: View {
     @StateObject private var viewModel = HistoryViewModel()
+    @EnvironmentObject var themeManager: ThemeManager
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    if viewModel.isLoading {
-                        ProgressView("Loading history...")
-                            .padding(.top, 100)
-                    } else if viewModel.recoveryHistory.isEmpty {
-                        EmptyHistoryView()
-                    } else {
-                        timeRangePicker
+            ZStack {
+                // Clean background
+                Color(.systemBackground)
+                    .ignoresSafeArea()
 
-                        statisticsCards
+                ScrollView {
+                    VStack(spacing: 20) {
+                        if viewModel.isLoading {
+                            ProgressView("Loading history...")
+                                .foregroundStyle(.white)
+                                .padding(.top, 100)
+                        } else if viewModel.recoveryHistory.isEmpty {
+                            EmptyHistoryView()
+                        } else {
+                            timeRangePicker
 
-                        recoveryScoreChart
+                            statisticsCards
 
-                        workoutsList
+                            recoveryScoreChart
+
+                            workoutsList
+                        }
                     }
+                    .padding(.bottom, 20)
                 }
-                .padding(.bottom, 20)
             }
             .navigationTitle("History")
             .task {
@@ -124,8 +132,17 @@ struct HistoryView: View {
             }
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.secondarySystemBackground))
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.secondarySystemBackground))
+
+                    VStack {
+                        themeManager.currentTheme.headerGradient
+                            .frame(height: 100)
+                        Spacer()
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
             )
             .padding(.horizontal)
         }
@@ -138,7 +155,10 @@ struct HistoryView: View {
                 .padding(.horizontal)
 
             ForEach(viewModel.workoutHistory.prefix(10)) { workout in
-                WorkoutHistoryRow(workout: workout)
+                NavigationLink(destination: WorkoutDetailHistoryView(workout: workout)) {
+                    WorkoutHistoryRow(workout: workout)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -159,32 +179,46 @@ struct StatCard: View {
     let value: String
     let icon: String
     let color: Color
+    @EnvironmentObject var themeManager: ThemeManager
 
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundStyle(color)
+                .frame(height: 28)
 
             Text(value)
                 .font(.title2)
                 .fontWeight(.bold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
 
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 120)
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.secondarySystemBackground))
+
+                VStack {
+                    themeManager.currentTheme.headerGradient
+                        .frame(height: 60)
+                    Spacer()
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
         )
     }
 }
 
 struct WorkoutHistoryRow: View {
     let workout: WorkoutData
+    @EnvironmentObject var themeManager: ThemeManager
 
     var body: some View {
         HStack(spacing: 12) {
@@ -214,14 +248,29 @@ struct WorkoutHistoryRow: View {
 
             Spacer()
 
-            Text(formatRelativeTime(workout.date))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(formatRelativeTime(workout.date))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.secondarySystemBackground))
+
+                VStack {
+                    themeManager.currentTheme.headerGradient
+                        .frame(height: 50)
+                    Spacer()
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
         )
         .padding(.horizontal)
     }

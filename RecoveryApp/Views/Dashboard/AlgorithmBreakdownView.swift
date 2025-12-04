@@ -265,7 +265,6 @@ struct AlgorithmBreakdownView: View {
 
         guard hrvValues.count >= 7 else {
             let baseline = hrvValues.isEmpty ? currentHRV : hrvValues.reduce(0.0, +) / Double(hrvValues.count)
-            let deviation = ((currentHRV - baseline) / baseline) * 100
             return """
             Current: \(String(format: "%.0f", currentHRV)) ms
             Baseline: \(String(format: "%.0f", baseline)) ms
@@ -327,7 +326,6 @@ struct AlgorithmBreakdownView: View {
 
         guard rhrValues.count >= 7 else {
             let baseline = rhrValues.isEmpty ? Double(currentRHR) : Double(rhrValues.reduce(0, +)) / Double(rhrValues.count)
-            let deviation = baseline - Double(currentRHR)
             return """
             Current: \(currentRHR) bpm
             Baseline: \(String(format: "%.0f", baseline)) bpm

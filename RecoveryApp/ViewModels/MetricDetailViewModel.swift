@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 struct MetricDataPoint: Identifiable {
     let id = UUID()

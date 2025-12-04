@@ -22,7 +22,19 @@ class DashboardViewModel: ObservableObject {
     private let recoveryCalculator = RecoveryCalculator()
     private let recommendationEngine = RecommendationEngine()
 
-    func loadData() async {
+    // Cache management
+    private var lastLoadTime: Date?
+    private var cacheExpirationInterval: TimeInterval = 300 // 5 minutes
+
+    func loadData(injuryViewModel: InjuryTrackerViewModel) async {
+        // Check if we have cached data that's still fresh
+        if let lastLoad = lastLoadTime,
+           todayRecovery != nil,
+           Date().timeIntervalSince(lastLoad) < cacheExpirationInterval {
+            print("📦 Using cached data (loaded \(Int(Date().timeIntervalSince(lastLoad)))s ago)")
+            return
+        }
+
         isLoading = true
         error = nil
 
@@ -36,9 +48,13 @@ class DashboardViewModel: ObservableObject {
 
             let todayMetrics = try await healthKitManager.fetchHealthMetrics(for: Date())
 
+            // Get injury impact
+            let injuryImpact = injuryViewModel.totalRecoveryImpact
+
             let recovery = recoveryCalculator.calculateRecoveryScore(
                 currentMetrics: todayMetrics,
-                historicalMetrics: historicalMetrics
+                historicalMetrics: historicalMetrics,
+                injuryImpact: injuryImpact
             )
 
             let allWorkouts = historicalMetrics.flatMap { $0.workouts }
@@ -61,6 +77,10 @@ class DashboardViewModel: ObservableObject {
             weeklyTrend = trend
             self.historicalMetrics = historicalMetrics
 
+            // Update cache timestamp
+            lastLoadTime = Date()
+            print("✅ Data cached at \(Date())")
+
         } catch {
             self.error = "Failed to load health data: \(error.localizedDescription)"
             print("Error loading data: \(error)")
@@ -69,7 +89,17 @@ class DashboardViewModel: ObservableObject {
         isLoading = false
     }
 
-    func refreshData() async {
-        await loadData()
+    func refreshData(injuryViewModel: InjuryTrackerViewModel) async {
+        // Force refresh by clearing cache
+        lastLoadTime = nil
+        await loadData(injuryViewModel: injuryViewModel)
+    }
+
+    func clearCache() {
+        lastLoadTime = nil
+        todayRecovery = nil
+        recommendation = nil
+        weeklyTrend = nil
+        historicalMetrics = []
     }
 }

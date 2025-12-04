@@ -464,13 +464,14 @@ class ExerciseDatabase {
     }
 
     /// Get additional exercises (for "generate more" feature)
+    /// Note: excluding contains exercise names (not UUIDs) to prevent duplicates
     static func additionalExercisesFor(
         region: BodyRegion,
-        excluding: [UUID],
+        excludingNames: [String],
         limit: Int = 4
     ) -> [RehabExercise] {
         let available = allExercises.filter {
-            $0.targetRegions.contains(region) && !excluding.contains($0.id)
+            $0.targetRegions.contains(region) && !excludingNames.contains($0.name)
         }
 
         return Array(available.prefix(limit))

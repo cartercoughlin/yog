@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
 class InjuryTrackerViewModel: ObservableObject {
@@ -77,10 +78,10 @@ class InjuryTrackerViewModel: ObservableObject {
     func generateMoreExercises(for injury: Injury) {
         guard let index = injuries.firstIndex(where: { $0.id == injury.id }) else { return }
 
-        let currentExerciseIds = injury.suggestedExercises.map { $0.id }
+        let currentExerciseNames = injury.suggestedExercises.map { $0.name }
         let additionalExercises = ExerciseDatabase.additionalExercisesFor(
             region: injury.region,
-            excluding: currentExerciseIds,
+            excludingNames: currentExerciseNames,
             limit: 4
         )
 
@@ -108,6 +109,10 @@ class InjuryTrackerViewModel: ObservableObject {
 
     var hasActiveInjuries: Bool {
         !activeInjuries.isEmpty
+    }
+
+    var totalRecoveryImpact: Double {
+        activeInjuries.reduce(0) { $0 + $1.recoveryImpact }
     }
 
     // MARK: - Persistence

@@ -11,7 +11,8 @@ class RecoveryCalculator {
 
     func calculateRecoveryScore(
         currentMetrics: HealthMetrics,
-        historicalMetrics: [HealthMetrics]
+        historicalMetrics: [HealthMetrics],
+        injuryImpact: Double = 0
     ) -> RecoveryData {
         let hrvScore = calculateHRVScore(
             current: currentMetrics.hrv,
@@ -43,6 +44,9 @@ class RecoveryCalculator {
             trainingLoadScore * 0.28 +  // Training load has significant impact
             screenTimeScore * 0.10      // Screen time affects mental recovery
         )
+
+        // Subtract injury impact from overall score
+        let overallScore = max(0, baseScore - Int(injuryImpact))
 
         let category = RecoveryCategory.from(score: overallScore)
 

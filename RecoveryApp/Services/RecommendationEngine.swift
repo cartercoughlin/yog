@@ -150,14 +150,11 @@ class RecommendationEngine {
             exercises: [
                 Exercise(name: "Leg Swings", sets: 2, reps: "15 each direction", restPeriod: 0,
                         notes: "Front/back and side-to-side"),
-                Exercise(name: "Arm Circles", sets: 2, reps: "20 each direction", restPeriod: 0),
                 Exercise(name: "Cat-Cow Stretch", sets: 1, reps: "15 reps", restPeriod: 0,
                         notes: "Slow and controlled"),
                 Exercise(name: "World's Greatest Stretch", sets: 2, reps: "5 each side", restPeriod: 30),
                 Exercise(name: "Foam Rolling", sets: 1, reps: "10 min", restPeriod: 0,
-                        notes: "Focus on tight areas"),
-                Exercise(name: "Light Walk", sets: 1, reps: "15-20 min", restPeriod: 0,
-                        notes: "Easy conversational pace")
+                        notes: "Focus on tight areas")
             ],
             reason: "Moderate recovery suggests active recovery. Focus on mobility and light movement."
         )

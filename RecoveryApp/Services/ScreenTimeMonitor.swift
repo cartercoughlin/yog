@@ -1,5 +1,19 @@
 import Foundation
 
+// MARK: - Framework Imports
+// Conditional imports for screen time tracking (iOS 15+)
+#if canImport(FamilyControls)
+import FamilyControls
+#endif
+
+#if canImport(DeviceActivity)
+import DeviceActivity
+#endif
+
+#if canImport(ManagedSettings)
+import ManagedSettings
+#endif
+
 /// Monitors and tracks screen time data
 /// NOTE: In production, this requires DeviceActivity framework (iOS 15+) and proper entitlements
 /// For development, this uses simulated realistic data
@@ -105,25 +119,36 @@ class ScreenTimeMonitor {
         return usages.sorted { $0.usageSeconds > $1.usageSeconds }
     }
 
-    // MARK: - Authorization (Placeholder)
+    // MARK: - Authorization
 
     /// Requests screen time authorization
-    /// In production, this would request DeviceActivity permissions
+    /// In production, this requests DeviceActivity permissions via FamilyControls
+    @MainActor
     func requestAuthorization() async -> Bool {
-        // Production implementation:
-        // import FamilyControls
-        // let center = AuthorizationCenter.shared
-        // try await center.requestAuthorization(for: .individual)
-
-        // For development, simulate approval
+        #if canImport(FamilyControls)
+        let center = AuthorizationCenter.shared
+        do {
+            try await center.requestAuthorization(for: .individual)
+            return center.authorizationStatus == .approved
+        } catch {
+            print("Failed to authorize screen time access: \(error.localizedDescription)")
+            return false
+        }
+        #else
+        // For development/simulator without FamilyControls, simulate approval
+        print("FamilyControls not available - using simulated data")
         return true
+        #endif
     }
 
     /// Checks if screen time access is authorized
     var isAuthorized: Bool {
-        // Production: check AuthorizationCenter.shared.authorizationStatus
-        // For development, return true
+        #if canImport(FamilyControls)
+        return AuthorizationCenter.shared.authorizationStatus == .approved
+        #else
+        // For development/simulator without FamilyControls, return true
         return true
+        #endif
     }
 }
 

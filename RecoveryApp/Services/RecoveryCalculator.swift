@@ -76,29 +76,32 @@ class RecoveryCalculator {
         let percentile = calculatePercentile(value: currentHRV, in: sortedValues)
 
         // Higher HRV = better recovery
-        // Generous scoring curve - hard to score below 30
+        // Very generous scoring curve - harder to score below 50
         let score: Double
-        if percentile >= 80 {
-            // Top 20% of your values = excellent (85-100)
-            score = 85 + (percentile - 80) * 0.75
-        } else if percentile >= 60 {
-            // Above median (60-80th percentile) = good (75-85)
-            score = 75 + (percentile - 60) * 0.5
-        } else if percentile >= 40 {
-            // Near median (40-60th percentile) = fair (65-75)
-            score = 65 + (percentile - 40) * 0.5
+        if percentile >= 75 {
+            // Top 25% of your values = excellent (88-100)
+            score = 88 + (percentile - 75) * 0.48
+        } else if percentile >= 55 {
+            // Above median (55-75th percentile) = very good (78-88)
+            score = 78 + (percentile - 55) * 0.5
+        } else if percentile >= 35 {
+            // Around median (35-55th percentile) = good (68-78)
+            score = 68 + (percentile - 35) * 0.5
         } else if percentile >= 20 {
-            // Below median (20-40th percentile) = moderate (50-65)
-            score = 50 + (percentile - 20) * 0.75
+            // Below median (20-35th percentile) = fair (58-68)
+            score = 58 + (percentile - 20) * 0.67
+        } else if percentile >= 10 {
+            // Lower range (10-20th percentile) = moderate (48-58)
+            score = 48 + (percentile - 10) * 1.0
         } else if percentile >= 5 {
-            // Bottom 15% (5-20th percentile) = low (35-50)
-            score = 35 + (percentile - 5) * 1.0
+            // Bottom 5-10% = low (40-48)
+            score = 40 + (percentile - 5) * 1.6
         } else {
-            // Bottom 5% = very low (30-35) - requires extreme outlier
-            score = 30 + (percentile * 1.0)
+            // Bottom 5% = very low (35-40) - requires extreme outlier
+            score = 35 + (percentile * 1.0)
         }
 
-        return min(100, max(30, score))
+        return min(100, max(35, score))
     }
 
     private func calculateRestingHRScore(current: Int?, historical: [HealthMetrics]) -> Double {
@@ -119,29 +122,32 @@ class RecoveryCalculator {
         let inversePercentile = 100 - calculatePercentile(value: currentRHR, in: sortedValues)
 
         // Lower RHR = better recovery
-        // Generous scoring curve - hard to score below 30
+        // Very generous scoring curve - harder to score below 50
         let score: Double
-        if inversePercentile >= 80 {
-            // Top 20% (lowest RHR) = excellent (85-100)
-            score = 85 + (inversePercentile - 80) * 0.75
-        } else if inversePercentile >= 60 {
-            // Above median (60-80th percentile) = good (75-85)
-            score = 75 + (inversePercentile - 60) * 0.5
-        } else if inversePercentile >= 40 {
-            // Near median (40-60th percentile) = fair (65-75)
-            score = 65 + (inversePercentile - 40) * 0.5
+        if inversePercentile >= 75 {
+            // Top 25% (lowest RHR) = excellent (88-100)
+            score = 88 + (inversePercentile - 75) * 0.48
+        } else if inversePercentile >= 55 {
+            // Above median (55-75th percentile) = very good (78-88)
+            score = 78 + (inversePercentile - 55) * 0.5
+        } else if inversePercentile >= 35 {
+            // Around median (35-55th percentile) = good (68-78)
+            score = 68 + (inversePercentile - 35) * 0.5
         } else if inversePercentile >= 20 {
-            // Below median (20-40th percentile) = moderate (50-65)
-            score = 50 + (inversePercentile - 20) * 0.75
+            // Below median (20-35th percentile) = fair (58-68)
+            score = 58 + (inversePercentile - 20) * 0.67
+        } else if inversePercentile >= 10 {
+            // Lower range (10-20th percentile) = moderate (48-58)
+            score = 48 + (inversePercentile - 10) * 1.0
         } else if inversePercentile >= 5 {
-            // Bottom 15% (5-20th percentile) = low (35-50)
-            score = 35 + (inversePercentile - 5) * 1.0
+            // Bottom 5-10% (high RHR) = low (40-48)
+            score = 40 + (inversePercentile - 5) * 1.6
         } else {
-            // Bottom 5% (very high RHR) = very low (30-35) - requires extreme outlier
-            score = 30 + (inversePercentile * 1.0)
+            // Bottom 5% (very high RHR) = very low (35-40) - requires extreme outlier
+            score = 35 + (inversePercentile * 1.0)
         }
 
-        return max(30, min(100, score))
+        return max(35, min(100, score))
     }
 
     private func calculateSleepScore(metrics: HealthMetrics) -> Double {
@@ -149,26 +155,32 @@ class RecoveryCalculator {
 
         let sleepHours = totalSleep / 3600.0
 
-        // Generous sleep scoring - hard to score below 30
+        // Very generous sleep scoring - harder to score below 50
         let durationScore: Double
         if sleepHours >= 8.0 {
-            // Excellent sleep duration (8+ hours) = 90-100
-            durationScore = min(100, 90 + (sleepHours - 8.0) * 5)
+            // Excellent sleep duration (8+ hours) = 92-100
+            durationScore = min(100, 92 + (sleepHours - 8.0) * 4)
         } else if sleepHours >= 7.0 {
-            // Good sleep duration (7-8 hours) = 75-90
-            durationScore = 75 + (sleepHours - 7.0) * 15
+            // Good sleep duration (7-8 hours) = 82-92
+            durationScore = 82 + (sleepHours - 7.0) * 10
+        } else if sleepHours >= 6.5 {
+            // Adequate sleep (6.5-7 hours) = 72-82
+            durationScore = 72 + (sleepHours - 6.5) * 20
         } else if sleepHours >= 6.0 {
-            // Adequate sleep (6-7 hours) = 60-75
-            durationScore = 60 + (sleepHours - 6.0) * 15
+            // Decent sleep (6-6.5 hours) = 64-72
+            durationScore = 64 + (sleepHours - 6.0) * 16
+        } else if sleepHours >= 5.5 {
+            // Moderate sleep (5.5-6 hours) = 56-64
+            durationScore = 56 + (sleepHours - 5.5) * 16
         } else if sleepHours >= 5.0 {
-            // Poor sleep (5-6 hours) = 45-60
-            durationScore = 45 + (sleepHours - 5.0) * 15
+            // Below average sleep (5-5.5 hours) = 48-56
+            durationScore = 48 + (sleepHours - 5.0) * 16
         } else if sleepHours >= 4.0 {
-            // Very poor sleep (4-5 hours) = 35-45
-            durationScore = 35 + (sleepHours - 4.0) * 10
+            // Poor sleep (4-5 hours) = 40-48
+            durationScore = 40 + (sleepHours - 4.0) * 8
         } else {
-            // Extremely poor sleep (<4 hours) = 30-35 - requires extreme sleep deprivation
-            durationScore = max(30, 30 + (sleepHours * 1.25))
+            // Extremely poor sleep (<4 hours) = 35-40 - requires extreme sleep deprivation
+            durationScore = max(35, 35 + (sleepHours * 1.25))
         }
 
         var qualityScore = durationScore
@@ -176,23 +188,27 @@ class RecoveryCalculator {
         if let deepPct = metrics.deepSleepPercentage,
            let remPct = metrics.remSleepPercentage {
 
-            // More generous quality scoring
+            // Very generous quality scoring
             let deepScore: Double
             if deepPct >= 18.0 {
-                deepScore = min(100, 85 + (deepPct - 18.0) * 3)
+                deepScore = min(100, 90 + (deepPct - 18.0) * 2)
             } else if deepPct >= 13.0 {
-                deepScore = 60 + (deepPct - 13.0) * 5
+                deepScore = 75 + (deepPct - 13.0) * 3
+            } else if deepPct >= 10.0 {
+                deepScore = 65 + (deepPct - 10.0) * 3.33
             } else {
-                deepScore = deepPct * 4.6
+                deepScore = max(50, deepPct * 6.5)
             }
 
             let remScore: Double
-            if remPct >= 20.0 {
-                remScore = min(100, 85 + (remPct - 20.0) * 3)
+            if remPct >= 23.0 {
+                remScore = min(100, 90 + (remPct - 23.0) * 2)
+            } else if remPct >= 18.0 {
+                remScore = 75 + (remPct - 18.0) * 3
             } else if remPct >= 15.0 {
-                remScore = 60 + (remPct - 15.0) * 5
+                remScore = 65 + (remPct - 15.0) * 3.33
             } else {
-                remScore = remPct * 4
+                remScore = max(50, remPct * 4.33)
             }
 
             qualityScore = durationScore * 0.4 +
@@ -200,7 +216,7 @@ class RecoveryCalculator {
                           remScore * 0.25
         }
 
-        return max(30, min(100, qualityScore))
+        return max(35, min(100, qualityScore))
     }
 
     private func calculateTrainingLoadScore(
@@ -217,36 +233,89 @@ class RecoveryCalculator {
 
         let ratio = acuteLoad / chronicLoad
 
-        // RECOVERY SCORE: Lower training load = better recovery (inverse relationship)
-        // Generous scoring - hard to score below 30
-        let score: Double
-        if ratio < 0.3 {
-            // Very low recent training = excellent recovery (95-100)
-            score = min(100, 95 + (0.3 - ratio) * 16.7)
-        } else if ratio < 0.6 {
-            // Low training = very good recovery (85-95)
-            score = 85 + (0.6 - ratio) * 33.3
-        } else if ratio <= 1.0 {
-            // Moderate balanced training = good recovery (70-85)
-            score = 70 + (1.0 - ratio) * 37.5
+        // RECOVERY SCORE: Training load stays high during normal training
+        // Only drops significantly for actual overtraining
+        let baseScore: Double
+        if ratio < 0.4 {
+            // Very low training = excellent recovery but detraining risk (92-100)
+            baseScore = min(100, 92 + (0.4 - ratio) * 20)
+        } else if ratio <= 0.7 {
+            // Light training = excellent recovery (88-92)
+            baseScore = 88 + (0.7 - ratio) * 13.3
         } else if ratio <= 1.3 {
-            // Slightly elevated training = moderate recovery (55-70)
-            score = 55 + (1.3 - ratio) * 50
+            // NORMAL TRAINING ZONE = very good recovery (82-88)
+            // Ratio 0.8-1.3 is healthy, balanced training
+            baseScore = 82 + (1.3 - ratio) * 10
         } else if ratio <= 1.6 {
-            // High training = low recovery (45-55)
-            score = 45 + (1.6 - ratio) * 33.3
+            // Slightly elevated = good recovery (70-82)
+            baseScore = 70 + (1.6 - ratio) * 40
         } else if ratio <= 2.0 {
-            // Very high training = very low recovery (37-45)
-            score = 37 + (2.0 - ratio) * 20
+            // High load = moderate recovery (55-70)
+            // This is where overreaching begins
+            baseScore = 55 + (2.0 - ratio) * 37.5
         } else if ratio <= 2.5 {
-            // Extreme overreaching = minimal recovery (32-37)
-            score = 32 + (2.5 - ratio) * 10
+            // Very high = low recovery (40-55)
+            // Clear overtraining signal
+            baseScore = 40 + (2.5 - ratio) * 30
         } else {
-            // Dangerous overtraining (>2.5x) = 30-32 - requires extreme overload
-            score = max(30, 32 - (ratio - 2.5) * 2)
+            // Extreme overtraining (>2.5x) = very low (35-40)
+            baseScore = max(35, 40 - (ratio - 2.5) * 10)
         }
 
-        return max(30, score)
+        // HR-based fatigue adjustment: check if HR is elevated during recent workouts
+        let hrFatigueAdjustment = calculateHRFatigueAdjustment(
+            currentMetrics: currentMetrics,
+            historicalMetrics: historicalMetrics
+        )
+
+        let adjustedScore = baseScore + hrFatigueAdjustment
+        return max(35, min(100, adjustedScore))
+    }
+
+    private func calculateHRFatigueAdjustment(
+        currentMetrics: HealthMetrics,
+        historicalMetrics: [HealthMetrics]
+    ) -> Double {
+        // Look at recent RUNNING workouts to detect if HR is abnormally elevated
+        // Only compare running to running for accurate fatigue detection
+
+        let last14Days = Array(historicalMetrics.suffix(14)) + [currentMetrics]
+        let allWorkouts = last14Days.flatMap { $0.workouts }
+
+        // Filter for running workouts only
+        let runningWorkouts = allWorkouts.filter { $0.type == .running }
+
+        // Need at least 5 running workouts for comparison
+        guard runningWorkouts.count >= 5 else { return 0 }
+
+        // Get average HR for the 3 most recent runs vs previous runs
+        let sortedByDate = runningWorkouts.sorted { $0.date > $1.date }
+        let recent3 = Array(sortedByDate.prefix(3)).compactMap { $0.averageHeartRate }
+        let older = Array(sortedByDate.dropFirst(3).prefix(7)).compactMap { $0.averageHeartRate }
+
+        guard recent3.count >= 2, older.count >= 3 else { return 0 }
+
+        let recentAvgHR = Double(recent3.reduce(0, +)) / Double(recent3.count)
+        let baselineAvgHR = Double(older.reduce(0, +)) / Double(older.count)
+
+        // If recent running HR is elevated by 3+ bpm, that's a fatigue signal
+        let hrDrift = recentAvgHR - baselineAvgHR
+
+        if hrDrift >= 8.0 {
+            // Significant HR elevation = -10 points (clear running fatigue)
+            return -10
+        } else if hrDrift >= 5.0 {
+            // Moderate HR elevation = -5 points
+            return -5
+        } else if hrDrift >= 3.0 {
+            // Slight HR elevation = -2 points
+            return -2
+        } else if hrDrift <= -3.0 {
+            // HR improving (becoming more efficient) = +3 bonus
+            return 3
+        }
+
+        return 0
     }
 
     private func calculateTotalTrainingStress(metrics: [HealthMetrics]) -> Double {
@@ -254,7 +323,7 @@ class RecoveryCalculator {
 
         for metric in metrics {
             for workout in metric.workouts {
-                let stress = calculateWorkoutStress(workout)
+                let stress = calculateWorkoutStress(workout, userRestingHR: metric.restingHeartRate)
                 totalStress += stress
             }
         }
@@ -262,14 +331,22 @@ class RecoveryCalculator {
         return totalStress
     }
 
-    private func calculateWorkoutStress(_ workout: WorkoutData) -> Double {
+    private func calculateWorkoutStress(_ workout: WorkoutData, userRestingHR: Int?) -> Double {
         guard let avgHR = workout.averageHeartRate else {
             return workout.durationInMinutes * 0.5
         }
 
-        let restingHR = 60.0
-        let maxHR = 190.0
+        // Use actual resting HR if available, otherwise estimate
+        let restingHR = userRestingHR.map(Double.init) ?? 60.0
+
+        // Calculate age-adjusted max HR using Tanaka formula: 208 - (0.7 × age)
+        // For safety, use conservative estimate if age unknown
+        let estimatedMaxHR = 190.0 // Conservative default
+        let maxHR = workout.maxHeartRate.map(Double.init) ?? estimatedMaxHR
+
         let hrReserve = maxHR - restingHR
+        guard hrReserve > 0 else { return workout.durationInMinutes * 0.5 }
+
         let intensity = (Double(avgHR) - restingHR) / hrReserve
 
         let stress = workout.durationInMinutes * intensity * intensity * 100

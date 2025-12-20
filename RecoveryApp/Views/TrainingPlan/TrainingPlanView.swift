@@ -182,6 +182,7 @@ struct SinglePlanView: View {
     @ObservedObject var viewModel: TrainingPlanViewModel
     @State private var showSetup = false
     @State private var selectedWeekNumber: String?
+    @State private var showWeekDetail = false
     @State private var showSyncBanner = true
 
     var body: some View {
@@ -220,6 +221,29 @@ struct SinglePlanView: View {
         .sheet(isPresented: $showSetup) {
             TrainingPlanSetupView(viewModel: viewModel)
         }
+        .sheet(isPresented: $showWeekDetail) {
+            if let weekNumberStr = selectedWeekNumber,
+               let weekNumber = Int(weekNumberStr),
+               let currentPlan = viewModel.currentPlan,
+               let selectedWeek = currentPlan.weeks.first(where: { $0.weekNumber == weekNumber }) {
+                NavigationStack {
+                    WeekDetailView(week: selectedWeek, plan: currentPlan, viewModel: viewModel)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Done") {
+                                    showWeekDetail = false
+                                    selectedWeekNumber = nil
+                                }
+                            }
+                        }
+                }
+            }
+        }
+        .onChange(of: selectedWeekNumber) { oldValue, newValue in
+            if newValue != nil {
+                showWeekDetail = true
+            }
+        }
     }
 
     private func planContentView(plan: TrainingPlan) -> some View {
@@ -236,12 +260,6 @@ struct SinglePlanView: View {
                 }
 
                 weeklyMileageChart(plan: plan)
-
-                if let weekNumberStr = selectedWeekNumber,
-                   let weekNumber = Int(weekNumberStr),
-                   let selectedWeek = plan.weeks.first(where: { $0.weekNumber == weekNumber }) {
-                    selectedWeekDetail(week: selectedWeek, plan: plan)
-                }
 
                 weekList(plan: plan)
             }
@@ -371,8 +389,13 @@ struct SinglePlanView: View {
     private func weeklyMileageChart(plan: TrainingPlan) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Weekly Mileage")
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Weekly Mileage")
+                        .font(.headline)
+                    Text("Tap any bar to view week details")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 Spacer()
 
@@ -402,11 +425,8 @@ struct SinglePlanView: View {
                         x: .value("Week", "\(week.weekNumber)"),
                         y: .value("Miles", week.totalMileage)
                     )
-                    .foregroundStyle(
-                        selectedWeekNumber == "\(week.weekNumber)"
-                            ? colorForPhase(week.phase)
-                            : colorForPhase(week.phase).opacity(0.6)
-                    )
+                    .foregroundStyle(colorForPhase(week.phase))
+                    .opacity(selectedWeekNumber == "\(week.weekNumber)" ? 1.0 : 0.7)
                 }
 
                 ForEach(plan.weeks.filter { $0.actualMileage > 0 }) { week in
@@ -447,54 +467,6 @@ struct SinglePlanView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
-        )
-    }
-
-    private func selectedWeekDetail(week: WeeklyPlan, plan: TrainingPlan) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Week \(week.weekNumber)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    Text(week.phase.rawValue)
-                        .font(.subheadline)
-                        .foregroundStyle(colorForPhase(week.phase))
-                }
-
-                Spacer()
-
-                NavigationLink {
-                    WeekDetailView(week: week, plan: plan, viewModel: viewModel)
-                } label: {
-                    HStack(spacing: 4) {
-                        Text("View Details")
-                            .font(.subheadline)
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                    }
-                    .foregroundStyle(.blue)
-                }
-            }
-
-            Button {
-                selectedWeekNumber = nil
-            } label: {
-                HStack {
-                    Spacer()
-                    Text("Close")
-                        .font(.subheadline)
-                    Spacer()
-                }
-                .padding(.vertical, 8)
-            }
-            .buttonStyle(.bordered)
-        }
-        .padding()
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(colorForPhase(week.phase), lineWidth: 2)
         )
     }
 

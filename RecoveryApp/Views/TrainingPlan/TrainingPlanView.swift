@@ -45,19 +45,21 @@ struct TrainingPlanView: View {
     }
 
     private var planListView: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                ForEach(viewModel.trainingPlans) { plan in
-                    NavigationLink {
-                        SinglePlanView(plan: plan, viewModel: viewModel)
-                    } label: {
-                        PlanListRowCard(plan: plan)
-                    }
-                    .buttonStyle(PlainButtonStyle())
+        List {
+            ForEach(viewModel.trainingPlans) { plan in
+                NavigationLink {
+                    SinglePlanView(plan: plan, viewModel: viewModel)
+                } label: {
+                    PlanListRowCard(plan: plan)
                 }
             }
-            .padding()
+            .onDelete { indexSet in
+                viewModel.deletePlans(at: indexSet)
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
         }
+        .listStyle(.plain)
     }
 
     private var emptyState: some View {

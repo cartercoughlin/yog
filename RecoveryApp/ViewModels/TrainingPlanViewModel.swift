@@ -241,16 +241,30 @@ class TrainingPlanViewModel: ObservableObject {
             description: phase == .foundation ? "Easy run" : "Easy run + 6 × 100m strides"
         ))
 
-        // Tuesday (day 2): Quality workout #1
-        let tuesdayWorkout = generateTuesdayQuality(
-            phase: phase,
-            weekNumber: weekNumber,
-            weekStartDate: weekStartDate,
-            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
-            raceDistance: raceDistance,
-            isStepback: isStepback
-        )
-        workouts.append(tuesdayWorkout)
+        // Tuesday (day 2): Quality workout (only ONE per week, eliminated during final 2-week taper)
+        let isTaperWeek = weekNumber >= 15  // Weeks 15 and 16 are taper weeks
+        if !isTaperWeek && !isStepback {
+            let tuesdayWorkout = generateTuesdayQuality(
+                phase: phase,
+                weekNumber: weekNumber,
+                weekStartDate: weekStartDate,
+                goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
+                isStepback: isStepback
+            )
+            workouts.append(tuesdayWorkout)
+        } else {
+            // Taper or stepback week: easy run instead of quality
+            workouts.append(createWorkout(
+                date: addDays(to: weekStartDate, days: 2),
+                type: .easy,
+                distance: 5,
+                durationMinutes: 50,
+                goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
+                raceDistance: raceDistance,
+                description: "Easy run"
+            ))
+        }
 
         // Wednesday (day 3): Easy recovery run
         let wednesdayDistance = isStepback ? 4.0 : min(6.0, targetMileage * 0.10)
@@ -264,16 +278,17 @@ class TrainingPlanViewModel: ObservableObject {
             description: "Easy recovery run"
         ))
 
-        // Thursday (day 4): Quality workout #2 or easy
-        let thursdayWorkout = generateThursdayQuality(
-            phase: phase,
-            weekNumber: weekNumber,
-            weekStartDate: weekStartDate,
-            goalMarathonPaceSecPerMile: goalMarathonPaceSecPerMile,
+        // Thursday (day 4): Always easy (removed second quality workout)
+        let thursdayDistance = isStepback ? 4.0 : min(6.0, targetMileage * 0.12)
+        workouts.append(createWorkout(
+            date: addDays(to: weekStartDate, days: 4),
+            type: .easy,
+            distance: thursdayDistance,
+            durationMinutes: Int(thursdayDistance * 9.5),
+            goalRacePaceSecPerMile: goalMarathonPaceSecPerMile,
             raceDistance: raceDistance,
-            isStepback: isStepback
-        )
-        workouts.append(thursdayWorkout)
+            description: "Easy run"
+        ))
 
         // Friday (day 5): Rest day
         workouts.append(createWorkout(
@@ -634,6 +649,23 @@ class TrainingPlanViewModel: ObservableObject {
     func deletePlan(_ plan: TrainingPlan) {
         trainingPlans.removeAll { $0.id == plan.id }
         if currentPlan?.id == plan.id {
+            currentPlan = trainingPlans.first
+        }
+    }
+
+    func deletePlans(at offsets: IndexSet) {
+        // Store IDs of plans to delete
+        let plansToDelete = offsets.map { trainingPlans[$0] }
+        let idsToDelete = Set(plansToDelete.map { $0.id })
+
+        // Check if current plan is being deleted
+        let deletingCurrentPlan = currentPlan.map { idsToDelete.contains($0.id) } ?? false
+
+        // Remove plans from array
+        trainingPlans.remove(atOffsets: offsets)
+
+        // Update current plan if it was deleted
+        if deletingCurrentPlan {
             currentPlan = trainingPlans.first
         }
     }

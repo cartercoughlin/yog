@@ -22,8 +22,15 @@ struct TrainingPlanView: View {
                     planListView
                 }
             }
-            .navigationTitle("Training Plans")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 44)
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         viewModel.currentPlan = nil

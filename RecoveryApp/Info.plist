@@ -32,5 +32,7 @@
         <string>com.garmin.connect.mobile</string>
         <string>strava</string>
     </array>
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
 </dict>
 </plist>

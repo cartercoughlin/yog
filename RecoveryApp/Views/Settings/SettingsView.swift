@@ -63,7 +63,15 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 44)
+                }
+            }
         }
     }
 }

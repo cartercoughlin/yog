@@ -34,14 +34,17 @@ struct DashboardView: View {
                                 }
                             }
                         } else if let recovery = viewModel.todayRecovery {
-                            RecoveryScoreCard(recovery: recovery)
-                                .environmentObject(themeManager)
-                                .onAppear {
-                                    themeManager.updateTheme(score: recovery.overallScore)
-                                }
-                                .onChange(of: recovery.overallScore) { _, newScore in
-                                    themeManager.updateTheme(score: newScore)
-                                }
+                            NavigationLink(destination: HistoryView().environmentObject(themeManager)) {
+                                RecoveryScoreCard(recovery: recovery)
+                                    .environmentObject(themeManager)
+                                    .onAppear {
+                                        themeManager.updateTheme(score: recovery.overallScore)
+                                    }
+                                    .onChange(of: recovery.overallScore) { _, newScore in
+                                        themeManager.updateTheme(score: newScore)
+                                    }
+                            }
+                            .buttonStyle(PlainButtonStyle())
 
                             Button {
                                 showAlgorithmBreakdown = true
@@ -90,8 +93,15 @@ struct DashboardView: View {
                     .padding(.bottom, 20)
                 }
             }
-            .navigationTitle("Recovery")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 44)
+                }
+
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         showSettings = true

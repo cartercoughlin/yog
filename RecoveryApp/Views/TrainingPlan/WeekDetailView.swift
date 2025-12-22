@@ -183,6 +183,7 @@ struct WorkoutCard: View {
     @State private var showLinkSheet = false
     @State private var showDatePicker = false
     @State private var newDate: Date
+    @State private var isExpanded = false
     @EnvironmentObject private var viewModel: TrainingPlanViewModel
 
     init(workout: DailyWorkout, plan: TrainingPlan) {
@@ -214,50 +215,77 @@ struct WorkoutCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                // Day indicator
-                VStack(spacing: 4) {
-                    Text(dayOfWeekFormatter.string(from: workout.date))
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(workout.type.isQuality ? .white : .secondary)
-
-                    Circle()
-                        .fill(workout.isCompleted ? Color.green : workoutColor)
-                        .frame(width: 8, height: 8)
+            Button {
+                withAnimation(.spring(response: 0.3)) {
+                    isExpanded.toggle()
                 }
-                .frame(width: 50)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(workout.type.isQuality ? workoutColor.opacity(0.2) : Color.clear)
-                )
+            } label: {
+                HStack(spacing: 12) {
+                    // Day indicator
+                    VStack(spacing: 4) {
+                        Text(dayOfWeekFormatter.string(from: workout.date))
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(workout.type.isQuality ? .white : .secondary)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(workout.type.rawValue)
-                            .font(.headline)
+                        Circle()
+                            .fill(workout.isCompleted ? Color.green : workoutColor)
+                            .frame(width: 8, height: 8)
+                    }
+                    .frame(width: 50)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(workout.type.isQuality ? workoutColor.opacity(0.2) : Color.clear)
+                    )
 
-                        if workout.type.isQuality {
-                            Image(systemName: "star.fill")
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(workout.type.rawValue)
+                                .font(.headline)
+                                .foregroundColor(.primary)
+
+                            if workout.type.isQuality {
+                                Image(systemName: "star.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.yellow)
+                            }
+
+                            if workout.isCompleted {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.green)
+                            }
+
+                            Spacer()
+
+                            if let distance = workout.distanceInMiles {
+                                Text(String(format: "%.0f mi", distance))
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
+                            }
+
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                                 .font(.caption)
-                                .foregroundStyle(.yellow)
+                                .foregroundStyle(.secondary)
                         }
 
-                        if workout.isCompleted {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.green)
-                        }
-
-                        Spacer()
-
-                        if let distance = workout.distanceInMiles {
-                            Text(String(format: "%.0f mi", distance))
+                        if !isExpanded {
+                            Text(workout.description)
                                 .font(.subheadline)
-                                .fontWeight(.semibold)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
                         }
                     }
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 12) {
+                    Divider()
+                        .padding(.vertical, 8)
 
                     Text(workout.description)
                         .font(.subheadline)
@@ -273,6 +301,8 @@ struct WorkoutCard: View {
                         .foregroundStyle(workoutColor)
                     }
                 }
+                .padding(.horizontal)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             // Linked workout display
@@ -403,6 +433,9 @@ struct WorkoutCard: View {
                 .presentationDetents([.medium])
             }
         }
+        .onLongPressGesture {
+            // Long press shows context menu options via sheet
+        }
         .contextMenu {
             Button {
                 showDatePicker = true
@@ -418,6 +451,14 @@ struct WorkoutCard: View {
                 }
             }
         }
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded { _ in
+                    withAnimation(.spring(response: 0.3)) {
+                        isExpanded.toggle()
+                    }
+                }
+        )
     }
 
     private var workoutColor: Color {

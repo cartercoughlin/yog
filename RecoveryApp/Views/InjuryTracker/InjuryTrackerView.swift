@@ -36,8 +36,15 @@ struct InjuryTrackerView: View {
                     .padding(.bottom)
                 }
             }
-            .navigationTitle("Injury Tracker")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 44)
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showAddInjury = true

@@ -52,6 +52,7 @@ struct TrainingPlanView: View {
                 } label: {
                     PlanListRowCard(plan: plan)
                 }
+                .buttonStyle(.plain)
             }
             .onDelete { indexSet in
                 viewModel.deletePlans(at: indexSet)

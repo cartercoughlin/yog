@@ -63,10 +63,7 @@ struct TrainingPlanView: View {
                 }
             }
             .onDelete { indexSet in
-                for index in indexSet {
-                    let plan = viewModel.trainingPlans[index]
-                    viewModel.deletePlan(plan)
-                }
+                viewModel.deletePlans(at: indexSet)
             }
         }
     }

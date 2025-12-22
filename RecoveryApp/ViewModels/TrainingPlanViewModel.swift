@@ -653,6 +653,23 @@ class TrainingPlanViewModel: ObservableObject {
         }
     }
 
+    func deletePlans(at offsets: IndexSet) {
+        // Store IDs of plans to delete
+        let plansToDelete = offsets.map { trainingPlans[$0] }
+        let idsToDelete = Set(plansToDelete.map { $0.id })
+
+        // Check if current plan is being deleted
+        let deletingCurrentPlan = currentPlan.map { idsToDelete.contains($0.id) } ?? false
+
+        // Remove plans from array
+        trainingPlans.remove(atOffsets: offsets)
+
+        // Update current plan if it was deleted
+        if deletingCurrentPlan {
+            currentPlan = trainingPlans.first
+        }
+    }
+
     func selectPlan(_ plan: TrainingPlan) {
         currentPlan = plan
     }

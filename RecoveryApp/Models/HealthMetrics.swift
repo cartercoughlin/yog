@@ -19,7 +19,6 @@ struct HealthMetrics: Codable, Identifiable {
     let workouts: [WorkoutData]
     let activeEnergyBurned: Double?
     let steps: Int?
-    let screenTimeHours: Double?  // Filtered screen time (excluding navigation/music) in hours
 
     init(
         id: UUID = UUID(),
@@ -32,8 +31,7 @@ struct HealthMetrics: Codable, Identifiable {
         coreSleepDuration: TimeInterval? = nil,
         workouts: [WorkoutData] = [],
         activeEnergyBurned: Double? = nil,
-        steps: Int? = nil,
-        screenTimeHours: Double? = nil
+        steps: Int? = nil
     ) {
         self.id = id
         self.date = date
@@ -46,7 +44,6 @@ struct HealthMetrics: Codable, Identifiable {
         self.workouts = workouts
         self.activeEnergyBurned = activeEnergyBurned
         self.steps = steps
-        self.screenTimeHours = screenTimeHours
     }
 
     var totalSleepHours: Double? {

@@ -16,9 +16,8 @@ struct WorkoutDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 HStack {
-                    Image(systemName: recommendation.type.icon)
+                    Text(recommendation.type.emoji)
                         .font(.system(size: 40))
-                        .foregroundStyle(Color(recommendation.type.color))
                         .frame(width: 70, height: 70)
                         .background(
                             Circle()

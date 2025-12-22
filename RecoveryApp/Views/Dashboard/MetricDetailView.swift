@@ -4,6 +4,7 @@ import Charts
 struct MetricDetailView: View {
     let metricType: MetricType
     @StateObject private var viewModel: MetricDetailViewModel
+    @State private var selectedDate: Date?
 
     init(metricType: MetricType, historicalMetrics: [HealthMetrics]) {
         self.metricType = metricType
@@ -50,16 +51,13 @@ struct MetricDetailView: View {
                     .font(.title2)
                     .foregroundColor(.secondary)
             }
-
-            Text("Current Value")
-                .font(.caption)
-                .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
+        )
     }
 
     private var timeRangeSelector: some View {
@@ -83,8 +81,25 @@ struct MetricDetailView: View {
 
     private var chartCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("History")
-                .font(.headline)
+            HStack {
+                Text("History")
+                    .font(.headline)
+
+                Spacer()
+
+                // Show value display at top right
+                if let selectedDate = selectedDate,
+                   let selectedPoint = viewModel.dataPoints.first(where: { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }) {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(viewModel.formattedValue(selectedPoint.value))
+                            .font(.headline)
+                            .foregroundColor(metricType.color)
+                        Text(selectedPoint.date.formatted(.dateTime.month(.abbreviated).day()))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
 
             if viewModel.dataPoints.isEmpty {
                 Text("No data available for selected time range")
@@ -99,7 +114,7 @@ struct MetricDetailView: View {
                             x: .value("Date", point.date),
                             y: .value(metricType.chartYAxisLabel, point.value)
                         )
-                        .foregroundStyle(metricType.color.gradient)
+                        .foregroundStyle(metricType.color)
                         .interpolationMethod(.catmullRom)
 
                         AreaMark(
@@ -114,6 +129,16 @@ struct MetricDetailView: View {
                             )
                         )
                         .interpolationMethod(.catmullRom)
+
+                        // Show point marker for selected date
+                        if let selectedDate = selectedDate, Calendar.current.isDate(point.date, inSameDayAs: selectedDate) {
+                            PointMark(
+                                x: .value("Date", point.date),
+                                y: .value(metricType.chartYAxisLabel, point.value)
+                            )
+                            .foregroundStyle(metricType.color)
+                            .symbolSize(100)
+                        }
                     }
 
                     // Average line
@@ -129,6 +154,15 @@ struct MetricDetailView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
+
+                    // Show vertical line for selected point (without annotation)
+                    if let selectedDate = selectedDate {
+                        RuleMark(
+                            x: .value("Selected", selectedDate)
+                        )
+                        .foregroundStyle(metricType.color.opacity(0.3))
+                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5]))
+                    }
                 }
                 .frame(height: 250)
                 .chartXAxis {
@@ -138,12 +172,14 @@ struct MetricDetailView: View {
                         AxisValueLabel(format: .dateTime.month(.abbreviated).day())
                     }
                 }
+                .chartXSelection(value: $selectedDate)
             }
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
+        )
     }
 
     private var statisticsCard: some View {
@@ -182,9 +218,10 @@ struct MetricDetailView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
+        )
     }
 
     private var trendColor: Color {
@@ -236,9 +273,11 @@ struct StatisticItem: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
         .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
+        )
     }
 }

@@ -114,17 +114,8 @@ struct InjuryTrackerView: View {
         }
         .padding()
         .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.secondarySystemBackground))
-
-                VStack {
-                    themeManager.currentTheme.headerGradient
-                        .frame(height: 80)
-                    Spacer()
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.secondarySystemBackground))
         )
         .padding(.horizontal)
     }
@@ -239,18 +230,9 @@ struct InjuryRow: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
-        .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(.systemBackground))
-
-                VStack {
-                    themeManager.currentTheme.headerGradient
-                        .frame(height: 50)
-                    Spacer()
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            }
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
         .padding(.horizontal)
     }

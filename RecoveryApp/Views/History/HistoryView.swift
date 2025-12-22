@@ -11,6 +11,7 @@ import Charts
 struct HistoryView: View {
     @StateObject private var viewModel = HistoryViewModel()
     @EnvironmentObject var themeManager: ThemeManager
+    @State private var selectedDate: Date?
 
     var body: some View {
         NavigationStack {
@@ -97,12 +98,29 @@ struct HistoryView: View {
 
     private var recoveryScoreChart: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Recovery Score Trend")
-                .font(.headline)
-                .padding(.horizontal)
+            HStack {
+                Text("Recovery Score Trend")
+                    .font(.headline)
+
+                Spacer()
+
+                // Show value display at top right
+                if let selectedDate = selectedDate,
+                   let selectedRecovery = viewModel.recoveryHistory.first(where: { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }) {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(String(format: "%.0f", selectedRecovery.overallScore))
+                            .font(.headline)
+                            .foregroundColor(.blue)
+                        Text(selectedRecovery.date.formatted(.dateTime.month(.abbreviated).day()))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding(.horizontal)
 
             Chart {
-                ForEach(viewModel.recoveryHistory) { recovery in
+                ForEach(Array(viewModel.recoveryHistory.enumerated()), id: \.element.id) { index, recovery in
                     LineMark(
                         x: .value("Date", recovery.date),
                         y: .value("Score", recovery.overallScore)
@@ -114,13 +132,38 @@ struct HistoryView: View {
                         x: .value("Date", recovery.date),
                         y: .value("Score", recovery.overallScore)
                     )
-                    .foregroundStyle(.blue.opacity(0.1))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.blue.opacity(0.3), Color.blue.opacity(0.1)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
                     .interpolationMethod(.catmullRom)
+
+                    // Show point marker for selected date
+                    if let selectedDate = selectedDate, Calendar.current.isDate(recovery.date, inSameDayAs: selectedDate) {
+                        PointMark(
+                            x: .value("Date", recovery.date),
+                            y: .value("Score", recovery.overallScore)
+                        )
+                        .foregroundStyle(.blue)
+                        .symbolSize(100)
+                    }
                 }
 
                 RuleMark(y: .value("Target", 70))
                     .foregroundStyle(.green.opacity(0.3))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [5]))
+
+                // Show vertical line for selected point
+                if let selectedDate = selectedDate {
+                    RuleMark(
+                        x: .value("Selected", selectedDate)
+                    )
+                    .foregroundStyle(Color.blue.opacity(0.3))
+                    .lineStyle(StrokeStyle(lineWidth: 2, dash: [5]))
+                }
             }
             .frame(height: 200)
             .chartYScale(domain: 0...100)
@@ -130,19 +173,11 @@ struct HistoryView: View {
             .chartYAxis {
                 AxisMarks(position: .leading)
             }
+            .chartXSelection(value: $selectedDate)
             .padding()
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(.secondarySystemBackground))
-
-                    VStack {
-                        themeManager.currentTheme.headerGradient
-                            .frame(height: 100)
-                        Spacer()
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
             )
             .padding(.horizontal)
         }
@@ -198,20 +233,11 @@ struct StatCard: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, minHeight: 120)
+        .frame(maxWidth: .infinity, minHeight: 80)
         .padding()
-        .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.secondarySystemBackground))
-
-                VStack {
-                    themeManager.currentTheme.headerGradient
-                        .frame(height: 60)
-                    Spacer()
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
     }
 }
@@ -259,18 +285,9 @@ struct WorkoutHistoryRow: View {
             }
         }
         .padding()
-        .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.secondarySystemBackground))
-
-                VStack {
-                    themeManager.currentTheme.headerGradient
-                        .frame(height: 50)
-                    Spacer()
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
         )
         .padding(.horizontal)
     }

@@ -56,8 +56,6 @@ class MetricDetailViewModel: ObservableObject {
             return sleepDuration / 3600.0  // Convert seconds to hours
         case .steps:
             return metric.steps.map { Double($0) }
-        case .screenTime:
-            return metric.screenTimeHours
         }
     }
 
@@ -73,12 +71,15 @@ class MetricDetailViewModel: ObservableObject {
             return
         }
 
-        currentValue = values.last
+        // Get the most recent value from ALL historical metrics (not just filtered)
+        let sortedMetrics = historicalMetrics.sorted { $0.date > $1.date }
+        currentValue = sortedMetrics.compactMap { extractValue(from: $0) }.first
+
         average = values.reduce(0, +) / Double(values.count)
         minimum = values.min()
         maximum = values.max()
 
-        // Calculate trend (comparing last value to average)
+        // Calculate trend (comparing current value to average of selected time range)
         if let current = currentValue, let avg = average {
             let percentDiff = ((current - avg) / avg) * 100
 
@@ -86,18 +87,18 @@ class MetricDetailViewModel: ObservableObject {
                 trend = "Stable"
             } else if percentDiff > 0 {
                 // For HRV, Sleep, and Steps, higher is better
-                // For Resting HR and Screen Time, lower is better
+                // For Resting HR, lower is better
                 switch metricType {
                 case .hrv, .sleep, .steps:
                     trend = "↑ Improving"
-                case .restingHeartRate, .screenTime:
-                    trend = "↑ Above Average"
+                case .restingHeartRate:
+                    trend = "↑ Above Avg."
                 }
             } else {
                 switch metricType {
                 case .hrv, .sleep, .steps:
-                    trend = "↓ Below Average"
-                case .restingHeartRate, .screenTime:
+                    trend = "↓ Below Avg."
+                case .restingHeartRate:
                     trend = "↓ Improving"
                 }
             }
@@ -116,8 +117,6 @@ class MetricDetailViewModel: ObservableObject {
             return String(format: "%.1f", value)
         case .steps:
             return String(format: "%.0f", value)
-        case .screenTime:
-            return String(format: "%.1f", value)
         }
     }
 }

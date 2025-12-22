@@ -100,40 +100,42 @@ class HealthKitManager: ObservableObject {
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 
-        async let hrv = fetchHRV(for: date)
-        async let restingHR = fetchRestingHeartRate(for: date)
-        async let sleepData = fetchSleepData(for: date)
-        async let activeEnergy = fetchActiveEnergy(startDate: startOfDay, endDate: endOfDay)
-        async let steps = fetchSteps(startDate: startOfDay, endDate: endOfDay)
-        async let screenTime = fetchScreenTime(for: date)
+        do {
+            async let hrv = fetchHRV(for: date)
+            async let restingHR = fetchRestingHeartRate(for: date)
+            async let sleepData = fetchSleepData(for: date)
+            async let activeEnergy = fetchActiveEnergy(startDate: startOfDay, endDate: endOfDay)
+            async let steps = fetchSteps(startDate: startOfDay, endDate: endOfDay)
+            async let dateOfBirth = fetchDateOfBirth()
 
-        async let dateOfBirth = fetchDateOfBirth()
+            let (hrvValue, restingHRValue, sleep, energy, stepCount, dob) = try await (
+                hrv, restingHR, sleepData, activeEnergy, steps, dateOfBirth
+            )
 
-        let (hrvValue, restingHRValue, sleep, energy, stepCount, dob) = try await (
-            hrv, restingHR, sleepData, activeEnergy, steps, dateOfBirth
-        )
+            // Fetch workouts with context about resting HR and age for accurate training stress
+            let workoutData = try await fetchWorkouts(
+                startDate: startOfDay,
+                endDate: endOfDay,
+                restingHR: restingHRValue,
+                dateOfBirth: dob
+            )
 
-        // Fetch workouts with context about resting HR and age for accurate training stress
-        let workoutData = try await fetchWorkouts(
-            startDate: startOfDay,
-            endDate: endOfDay,
-            restingHR: restingHRValue,
-            dateOfBirth: dob
-        )
-
-        return HealthMetrics(
-            date: date,
-            hrv: hrvValue,
-            restingHeartRate: restingHRValue,
-            sleepDuration: sleep.totalDuration,
-            deepSleepDuration: sleep.deepDuration,
-            remSleepDuration: sleep.remDuration,
-            coreSleepDuration: sleep.coreDuration,
-            workouts: workoutData,
-            activeEnergyBurned: energy,
-            steps: stepCount,
-            screenTimeHours: screenTimeHours
-        )
+            return HealthMetrics(
+                date: date,
+                hrv: hrvValue,
+                restingHeartRate: restingHRValue,
+                sleepDuration: sleep.totalDuration,
+                deepSleepDuration: sleep.deepDuration,
+                remSleepDuration: sleep.remDuration,
+                coreSleepDuration: sleep.coreDuration,
+                workouts: workoutData,
+                activeEnergyBurned: energy,
+                steps: stepCount
+            )
+        } catch {
+            print("⚠️ HealthKit data fetch failed: \(error)")
+            throw HealthKitError.dataNotAvailable
+        }
     }
 
     func fetchHistoricalMetrics(days: Int) async throws -> [HealthMetrics] {
@@ -149,7 +151,8 @@ class HealthKitManager: ObservableObject {
                 let dayMetrics = try await fetchHealthMetrics(for: currentDate)
                 metrics.append(dayMetrics)
             } catch {
-                print("Error fetching metrics for \(currentDate): \(error)")
+                print("No data available for \(currentDate): \(error)")
+                // Skip days with no data instead of adding fake data
             }
             currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
         }
@@ -168,7 +171,8 @@ class HealthKitManager: ObservableObject {
                 let dayMetrics = try await fetchHealthMetrics(for: currentDate)
                 metrics.append(dayMetrics)
             } catch {
-                print("Error fetching metrics for \(currentDate): \(error)")
+                print("No data available for \(currentDate): \(error)")
+                // Skip days with no data instead of adding fake data
             }
             currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
         }
@@ -729,27 +733,6 @@ class HealthKitManager: ObservableObject {
         }
     }
 
-    private func fetchScreenTime(for date: Date) async throws -> Double? {
-        // Fetch screen time data using ScreenTimeMonitor
-        // This uses simulated data in development; production would require DeviceActivity framework
-        print("📱 Fetching Screen Time for \(date)...")
-
-        do {
-            let screenTimeData = try await ScreenTimeMonitor.shared.fetchScreenTime(for: date)
-            let hours = screenTimeData?.filteredHours
-
-            if let hours = hours {
-                print("   ✅ Screen Time: \(String(format: "%.1f", hours)) hours (filtered)")
-            } else {
-                print("   ⚠️ No Screen Time data available")
-            }
-
-            return hours
-        } catch {
-            print("   ❌ Screen Time fetch error: \(error)")
-            return nil
-        }
-    }
 
     private func predicateForDay(_ date: Date) -> NSPredicate {
         let calendar = Calendar.current

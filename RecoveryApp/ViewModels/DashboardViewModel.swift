@@ -43,10 +43,32 @@ class DashboardViewModel: ObservableObject {
 
             // Fetch 90 days of historical data for better baselines
             print("📅 Fetching 90 days of historical data for baseline calculation...")
-            let historicalMetrics = try await healthKitManager.fetchHistoricalMetrics(days: 90)
+            var historicalMetrics = try await healthKitManager.fetchHistoricalMetrics(days: 90)
             print("✅ Loaded \(historicalMetrics.count) days of historic data")
+            
+            // Check if we have any meaningful data
+            let hasAnyData = historicalMetrics.contains { metrics in
+                metrics.hrv != nil || metrics.restingHeartRate != nil || 
+                metrics.sleepDuration != nil || !metrics.workouts.isEmpty
+            }
+            
+            guard hasAnyData else {
+                throw HealthKitError.dataNotAvailable
+            }
 
             let todayMetrics = try await healthKitManager.fetchHealthMetrics(for: Date())
+
+            // Add today's metrics to historical data if not already present
+            let today = Calendar.current.startOfDay(for: Date())
+            if !historicalMetrics.contains(where: { Calendar.current.isDate($0.date, inSameDayAs: today) }) {
+                historicalMetrics.append(todayMetrics)
+                print("✅ Added today's metrics to historical data")
+            } else {
+                // Replace today's metrics with fresh data
+                historicalMetrics.removeAll { Calendar.current.isDate($0.date, inSameDayAs: today) }
+                historicalMetrics.append(todayMetrics)
+                print("✅ Updated today's metrics in historical data")
+            }
 
             // Get injury impact
             let injuryImpact = injuryViewModel.totalRecoveryImpact
@@ -82,7 +104,18 @@ class DashboardViewModel: ObservableObject {
             print("✅ Data cached at \(Date())")
 
         } catch {
-            self.error = "Failed to load health data: \(error.localizedDescription)"
+            if let healthKitError = error as? HealthKitError {
+                switch healthKitError {
+                case .dataNotAvailable:
+                    self.error = nil // Will show EmptyStateView instead
+                case .notAvailable:
+                    self.error = "HealthKit is not available on this device"
+                case .authorizationFailed:
+                    self.error = "HealthKit access denied. Please enable in Settings > Privacy & Security > Health"
+                }
+            } else {
+                self.error = "Failed to load health data: \(error.localizedDescription)"
+            }
             print("Error loading data: \(error)")
         }
 

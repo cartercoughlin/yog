@@ -12,72 +12,68 @@ struct RecoveryScoreCard: View {
     @EnvironmentObject var themeManager: ThemeManager
 
     var body: some View {
-        VStack(spacing: 20) {
-            // Plant visualization section
-            VStack(spacing: 12) {
-                PlantVisualization(
-                    score: recovery.overallScore,
-                    theme: themeManager.currentTheme
-                )
+        VStack(spacing: 24) {
+            // Score visualization section
+            VStack(spacing: 20) {
+                // Circular progress ring
+                ZStack {
+                    // Background circle
+                    Circle()
+                        .stroke(Color.secondary.opacity(0.2), lineWidth: 20)
+                        .frame(width: 160, height: 160)
 
-                Text("\(recovery.overallScore)")
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    // Progress circle
+                    Circle()
+                        .trim(from: 0, to: CGFloat(recovery.overallScore) / 100.0)
+                        .stroke(
+                            recovery.category.color.gradient,
+                            style: StrokeStyle(lineWidth: 20, lineCap: .round)
+                        )
+                        .frame(width: 160, height: 160)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.easeInOut(duration: 1.0), value: recovery.overallScore)
+
+                    // Score text in center
+                    VStack(spacing: 4) {
+                        Text("\(recovery.overallScore)")
+                            .font(.system(size: 52, weight: .bold, design: .rounded))
+                            .foregroundStyle(recovery.category.color.gradient)
+                    }
+                }
 
                 Text(recovery.category.rawValue)
                     .font(.title3)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(recovery.category.color.gradient)
 
-                Text(PlantStage.from(score: recovery.overallScore).description)
+                Text(recovery.category.description)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
             }
-            .padding(.vertical, 30)
 
-            Divider()
-
-            // Score breakdown with glass effect background
-            VStack(spacing: 12) {
+            // Score breakdown
+            VStack(alignment: .leading, spacing: 16) {
                 Text("Score Breakdown")
                     .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 ForEach(recovery.scoreBreakdown, id: \.0) { item in
                     ScoreBreakdownRow(
                         label: item.0,
                         score: item.1,
                         icon: item.2,
+                        recovery: recovery,
                         theme: themeManager.currentTheme
                     )
                 }
             }
             .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
             )
-            .padding(.horizontal)
-            .padding(.bottom)
         }
-        .background(
-            ZStack {
-                // Main card background
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(.secondarySystemBackground))
-
-                // Subtle accent gradient overlay at top
-                VStack {
-                    themeManager.currentTheme.headerGradient
-                        .frame(height: 200)
-                    Spacer()
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-            }
-            .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 4)
-        )
         .padding()
     }
 }
@@ -86,12 +82,13 @@ struct ScoreBreakdownRow: View {
     let label: String
     let score: Double
     let icon: String
+    let recovery: RecoveryData
     let theme: RecoveryTheme
 
     var body: some View {
         HStack {
             Image(systemName: icon)
-                .foregroundStyle(theme.accentGradient)
+                .foregroundStyle(recovery.category.color.gradient)
                 .frame(width: 24)
 
             Text(label)
@@ -105,7 +102,7 @@ struct ScoreBreakdownRow: View {
                     .frame(width: 100, height: 8)
 
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(theme.accentGradient)
+                    .fill(recovery.category.color)
                     .frame(width: max(0, min(100, CGFloat(score))), height: 8)
             }
 

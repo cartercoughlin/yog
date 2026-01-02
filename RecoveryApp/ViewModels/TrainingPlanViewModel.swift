@@ -778,6 +778,132 @@ class TrainingPlanViewModel: ObservableObject {
         }
     }
 
+    func skipWorkout(workoutId: UUID) {
+        guard var plan = currentPlan else { return }
+
+        var updatedWeeks = plan.weeks
+        for (weekIndex, week) in updatedWeeks.enumerated() {
+            for (workoutIndex, workout) in week.workouts.enumerated() {
+                if workout.id == workoutId {
+                    // Mark workout as completed but with no linked workout data
+                    let updatedWorkout = DailyWorkout(
+                        id: workout.id,
+                        date: workout.date,
+                        type: workout.type,
+                        distanceInMiles: workout.distanceInMiles,
+                        durationInMinutes: workout.durationInMinutes,
+                        paceMinPerMile: workout.paceMinPerMile,
+                        description: workout.description + " (Skipped)",
+                        isCompleted: true,
+                        linkedWorkout: nil
+                    )
+
+                    var updatedWorkouts = week.workouts
+                    updatedWorkouts[workoutIndex] = updatedWorkout
+
+                    updatedWeeks[weekIndex] = WeeklyPlan(
+                        id: week.id,
+                        weekNumber: week.weekNumber,
+                        phase: week.phase,
+                        workouts: updatedWorkouts,
+                        startDate: week.startDate,
+                        isStepbackWeek: week.isStepbackWeek
+                    )
+
+                    let updatedPlan = TrainingPlan(
+                        id: plan.id,
+                        name: plan.name,
+                        raceDistance: plan.raceDistance,
+                        raceDate: plan.raceDate,
+                        goalTimeInSeconds: plan.goalTimeInSeconds,
+                        minWeeklyMileage: plan.minWeeklyMileage,
+                        maxWeeklyMileage: plan.maxWeeklyMileage,
+                        weeks: updatedWeeks,
+                        vdot: plan.vdot,
+                        allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
+                        createdDate: plan.createdDate
+                    )
+
+                    currentPlan = updatedPlan
+                    if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
+                        trainingPlans[planIndex] = updatedPlan
+                    }
+                    return
+                }
+            }
+        }
+    }
+
+    func addManualWorkout(workoutId: UUID, distance: Double, duration: TimeInterval, date: Date) {
+        guard var plan = currentPlan else { return }
+
+        var updatedWeeks = plan.weeks
+        for (weekIndex, week) in updatedWeeks.enumerated() {
+            for (workoutIndex, workout) in week.workouts.enumerated() {
+                if workout.id == workoutId {
+                    // Calculate pace
+                    let paceSecPerMile = duration / distance
+                    let paceMin = Int(paceSecPerMile / 60)
+                    let paceSec = Int(paceSecPerMile.truncatingRemainder(dividingBy: 60))
+                    let paceString = String(format: "%d:%02d", paceMin, paceSec)
+
+                    let linkedWorkout = LinkedWorkout(
+                        id: UUID(),
+                        workoutId: "manual-\(UUID().uuidString)",
+                        actualDistance: distance,
+                        actualDuration: duration,
+                        actualPace: paceString,
+                        completedDate: date
+                    )
+
+                    let updatedWorkout = DailyWorkout(
+                        id: workout.id,
+                        date: workout.date,
+                        type: workout.type,
+                        distanceInMiles: workout.distanceInMiles,
+                        durationInMinutes: workout.durationInMinutes,
+                        paceMinPerMile: workout.paceMinPerMile,
+                        description: workout.description,
+                        isCompleted: true,
+                        linkedWorkout: linkedWorkout
+                    )
+
+                    var updatedWorkouts = week.workouts
+                    updatedWorkouts[workoutIndex] = updatedWorkout
+
+                    updatedWeeks[weekIndex] = WeeklyPlan(
+                        id: week.id,
+                        weekNumber: week.weekNumber,
+                        phase: week.phase,
+                        workouts: updatedWorkouts,
+                        startDate: week.startDate,
+                        isStepbackWeek: week.isStepbackWeek
+                    )
+
+                    let updatedPlan = TrainingPlan(
+                        id: plan.id,
+                        name: plan.name,
+                        raceDistance: plan.raceDistance,
+                        raceDate: plan.raceDate,
+                        goalTimeInSeconds: plan.goalTimeInSeconds,
+                        minWeeklyMileage: plan.minWeeklyMileage,
+                        maxWeeklyMileage: plan.maxWeeklyMileage,
+                        weeks: updatedWeeks,
+                        vdot: plan.vdot,
+                        allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
+                        createdDate: plan.createdDate
+                    )
+
+                    currentPlan = updatedPlan
+                    if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
+                        trainingPlans[planIndex] = updatedPlan
+                    }
+                    return
+                }
+            }
+        }
+    }
+
     // MARK: - Workout Day Editing
 
     func moveWorkout(from workoutId: UUID, toDay newDate: Date) {

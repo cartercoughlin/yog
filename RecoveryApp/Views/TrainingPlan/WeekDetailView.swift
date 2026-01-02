@@ -195,6 +195,8 @@ struct WorkoutCard: View {
     let plan: TrainingPlan
     @State private var showLinkSheet = false
     @State private var showDatePicker = false
+    @State private var showManualEntry = false
+    @State private var isExpanded = false
     @State private var newDate: Date
     @EnvironmentObject private var viewModel: TrainingPlanViewModel
 
@@ -227,142 +229,188 @@ struct WorkoutCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                // Day indicator
-                VStack(spacing: 4) {
-                    Text(dayOfWeekFormatter.string(from: workout.date))
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(workout.type.isQuality ? .white : .secondary)
-
-                    Circle()
-                        .fill(workout.isCompleted ? Color.green : workoutColor)
-                        .frame(width: 8, height: 8)
+            // Main card content - tappable to expand
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    isExpanded.toggle()
                 }
-                .frame(width: 50)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(workout.type.isQuality ? workoutColor.opacity(0.2) : Color.clear)
-                )
+            } label: {
+                HStack(spacing: 12) {
+                    // Day indicator
+                    VStack(spacing: 4) {
+                        Text(dayOfWeekFormatter.string(from: workout.date))
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(workout.type.isQuality ? .white : .secondary)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(workout.type.rawValue)
-                            .font(.headline)
-
-                        if workout.type.isQuality {
-                            Image(systemName: "star.fill")
-                                .font(.caption)
-                                .foregroundStyle(.yellow)
-                        }
-
-                        if workout.isCompleted {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.green)
-                        }
-
-                        Spacer()
-
-                        if let distance = workout.distanceInMiles {
-                            Text(String(format: "%.0f mi", distance))
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                        }
+                        Circle()
+                            .fill(workout.isCompleted ? Color.green : workoutColor)
+                            .frame(width: 8, height: 8)
                     }
+                    .frame(width: 50)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(workout.type.isQuality ? workoutColor.opacity(0.2) : Color.clear)
+                    )
 
-                    Text(workout.description)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(workout.type.rawValue)
+                                .font(.headline)
 
-                    if let pace = calculatedPace {
-                        HStack(spacing: 4) {
-                            Image(systemName: "speedometer")
+                            if workout.type.isQuality {
+                                Image(systemName: "star.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.yellow)
+                            }
+
+                            if workout.isCompleted {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.green)
+                            }
+
+                            Spacer()
+
+                            // Expand/collapse indicator
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                                 .font(.caption)
-                            Text("\(pace) / mile")
-                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            if let distance = workout.distanceInMiles {
+                                Text(String(format: "%.0f mi", distance))
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                            }
                         }
-                        .foregroundStyle(workoutColor)
+
+                        Text(workout.description)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(isExpanded ? nil : 2)
+
+                        if let pace = calculatedPace {
+                            HStack(spacing: 4) {
+                                Image(systemName: "speedometer")
+                                    .font(.caption)
+                                Text("\(pace) / mile")
+                                    .font(.caption)
+                            }
+                            .foregroundStyle(workoutColor)
+                        }
                     }
                 }
             }
+            .buttonStyle(PlainButtonStyle())
 
-            // Linked workout display
-            if let linked = workout.linkedWorkout {
-                Divider()
-                    .padding(.vertical, 8)
+            // Expanded content
+            if isExpanded {
+                VStack(spacing: 12) {
+                    Divider()
+                        .padding(.vertical, 4)
 
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Completed Workout")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.green)
-
+                    // Linked workout display
+                    if let linked = workout.linkedWorkout {
                         HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Distance")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                Text(linked.formattedDistance)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Completed Workout")
                                     .font(.caption)
                                     .fontWeight(.semibold)
+                                    .foregroundStyle(.green)
+
+                                HStack(spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Distance")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        Text(linked.formattedDistance)
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                    }
+
+                                    Divider().frame(height: 20)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Pace")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        Text("\(linked.actualPace) / mi")
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                    }
+
+                                    Divider().frame(height: 20)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Duration")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        Text(linked.formattedDuration)
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                    }
+                                }
                             }
 
-                            Divider().frame(height: 20)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Pace")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                Text("\(linked.actualPace) / mi")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                            }
-
-                            Divider().frame(height: 20)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Duration")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                Text(linked.formattedDuration)
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                            }
+                            Spacer()
                         }
+                        .padding(.horizontal)
                     }
 
-                    Spacer()
-                }
-                .padding(.horizontal)
-                .padding(.bottom, 4)
-            } else if !workout.isCompleted {
-                // Link workout button (only for past/present workouts)
-                if workout.date <= Date() {
-                    Button {
-                        showLinkSheet = true
-                    } label: {
+                    // Action buttons for past/present workouts
+                    if workout.date <= Date() && !workout.isCompleted {
+                        VStack(spacing: 8) {
+                            Button {
+                                showLinkSheet = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "link")
+                                    Text("Link HealthKit Workout")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button {
+                                showManualEntry = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "pencil")
+                                    Text("Enter Manual Mileage")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button {
+                                viewModel.skipWorkout(workoutId: workout.id)
+                            } label: {
+                                HStack {
+                                    Image(systemName: "forward.fill")
+                                    Text("Skip This Workout")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                            }
+                            .buttonStyle(.bordered)
+                            .foregroundStyle(.orange)
+                        }
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                    } else if workout.date > Date() {
+                        // Future workout indicator
                         HStack {
-                            Image(systemName: "link")
+                            Image(systemName: "calendar")
                                 .font(.caption)
-                            Text("Link Workout")
+                            Text("Scheduled for \(workout.date.formatted(date: .abbreviated, time: .omitted))")
                                 .font(.caption)
                         }
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(.secondary)
                         .padding(.vertical, 8)
                     }
-                } else {
-                    // Future workout indicator
-                    HStack {
-                        Image(systemName: "calendar")
-                            .font(.caption)
-                        Text("Scheduled for \(workout.date.formatted(date: .abbreviated, time: .omitted))")
-                            .font(.caption)
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 8)
                 }
             }
         }
@@ -381,6 +429,10 @@ struct WorkoutCard: View {
         )
         .sheet(isPresented: $showLinkSheet) {
             WorkoutLinkingSheet(workout: workout)
+                .environmentObject(viewModel)
+        }
+        .sheet(isPresented: $showManualEntry) {
+            ManualMileageEntrySheet(workout: workout)
                 .environmentObject(viewModel)
         }
         .sheet(isPresented: $showDatePicker) {
@@ -443,6 +495,115 @@ struct WorkoutCard: View {
         case .hill: return .brown
         case .rest: return .gray
         }
+    }
+}
+
+struct ManualMileageEntrySheet: View {
+    let workout: DailyWorkout
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var viewModel: TrainingPlanViewModel
+    @State private var distance: String = ""
+    @State private var hours: Int = 0
+    @State private var minutes: Int = 30
+    @State private var seconds: Int = 0
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Workout Details") {
+                    HStack {
+                        Text("Distance (miles)")
+                        Spacer()
+                        TextField("0.0", text: $distance)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 80)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Duration")
+                            .font(.subheadline)
+                        HStack(spacing: 16) {
+                            Picker("Hours", selection: $hours) {
+                                ForEach(0..<10) { hour in
+                                    Text("\(hour)h").tag(hour)
+                                }
+                            }
+                            .pickerStyle(.wheel)
+                            .frame(width: 80)
+
+                            Picker("Minutes", selection: $minutes) {
+                                ForEach(0..<60) { minute in
+                                    Text("\(minute)m").tag(minute)
+                                }
+                            }
+                            .pickerStyle(.wheel)
+                            .frame(width: 80)
+
+                            Picker("Seconds", selection: $seconds) {
+                                ForEach(0..<60) { second in
+                                    Text("\(second)s").tag(second)
+                                }
+                            }
+                            .pickerStyle(.wheel)
+                            .frame(width: 80)
+                        }
+                    }
+                }
+
+                Section {
+                    if let dist = Double(distance), dist > 0, (hours > 0 || minutes > 0 || seconds > 0) {
+                        let totalSeconds = Double(hours * 3600 + minutes * 60 + seconds)
+                        let paceSecPerMile = totalSeconds / dist
+                        let paceMin = Int(paceSecPerMile / 60)
+                        let paceSec = Int(paceSecPerMile.truncatingRemainder(dividingBy: 60))
+
+                        HStack {
+                            Text("Pace")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(String(format: "%d:%02d /mi", paceMin, paceSec))
+                                .fontWeight(.semibold)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Manual Entry")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        saveManualEntry()
+                    }
+                    .disabled(!isValidEntry)
+                }
+            }
+        }
+    }
+
+    private var isValidEntry: Bool {
+        guard let dist = Double(distance), dist > 0 else { return false }
+        return hours > 0 || minutes > 0 || seconds > 0
+    }
+
+    private func saveManualEntry() {
+        guard let dist = Double(distance) else { return }
+        let totalSeconds = Double(hours * 3600 + minutes * 60 + seconds)
+
+        viewModel.addManualWorkout(
+            workoutId: workout.id,
+            distance: dist,
+            duration: totalSeconds,
+            date: workout.date
+        )
+
+        dismiss()
     }
 }
 

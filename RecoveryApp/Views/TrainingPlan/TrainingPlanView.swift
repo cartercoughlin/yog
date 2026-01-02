@@ -324,16 +324,16 @@ struct SinglePlanView: View {
 
     private func syncReminderBanner() -> some View {
         HStack(spacing: 12) {
-            Image(systemName: "arrow.clockwise.circle.fill")
+            Image(systemName: "figure.run.circle.fill")
                 .font(.title2)
                 .foregroundStyle(.blue)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Link Your Workouts")
+                Text("Track Your Workouts")
                     .font(.subheadline)
                     .fontWeight(.semibold)
 
-                Text("Open Garmin Connect to sync, then link completed runs to your plan")
+                Text("Tap any workout card to link HealthKit data or enter manual mileage")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -773,12 +773,21 @@ class TrainingPlanViewModel: ObservableObject {
         for (weekIndex, week) in updatedWeeks.enumerated() {
             for (workoutIndex, workout) in week.workouts.enumerated() {
                 if workout.id == workoutId {
-                    // Calculate actual pace
-                    let distanceMiles = healthKitWorkout.distance! / 1609.34
-                    let paceSecPerMile = healthKitWorkout.duration / distanceMiles
-                    let paceMin = Int(paceSecPerMile / 60)
-                    let paceSec = Int(paceSecPerMile.truncatingRemainder(dividingBy: 60))
-                    let paceString = String(format: "%d:%02d", paceMin, paceSec)
+                    // Calculate actual pace (only for distance-based workouts)
+                    let distanceMiles: Double
+                    let paceString: String
+
+                    if let distance = healthKitWorkout.distance, distance > 0 {
+                        distanceMiles = distance / 1609.34
+                        let paceSecPerMile = healthKitWorkout.duration / distanceMiles
+                        let paceMin = Int(paceSecPerMile / 60)
+                        let paceSec = Int(paceSecPerMile.truncatingRemainder(dividingBy: 60))
+                        paceString = String(format: "%d:%02d", paceMin, paceSec)
+                    } else {
+                        // Strength training or other non-distance workouts
+                        distanceMiles = 0
+                        paceString = "N/A"
+                    }
 
                     let linkedWorkout = LinkedWorkout(
                         id: UUID(),
@@ -1021,11 +1030,17 @@ class TrainingPlanViewModel: ObservableObject {
         for (weekIndex, week) in updatedWeeks.enumerated() {
             for (workoutIndex, workout) in week.workouts.enumerated() {
                 if workout.id == workoutId {
-                    // Calculate pace
-                    let paceSecPerMile = duration / distance
-                    let paceMin = Int(paceSecPerMile / 60)
-                    let paceSec = Int(paceSecPerMile.truncatingRemainder(dividingBy: 60))
-                    let paceString = String(format: "%d:%02d", paceMin, paceSec)
+                    // Calculate pace (only for distance-based workouts)
+                    let paceString: String
+                    if distance > 0 {
+                        let paceSecPerMile = duration / distance
+                        let paceMin = Int(paceSecPerMile / 60)
+                        let paceSec = Int(paceSecPerMile.truncatingRemainder(dividingBy: 60))
+                        paceString = String(format: "%d:%02d", paceMin, paceSec)
+                    } else {
+                        // Strength training or other non-distance workouts
+                        paceString = "N/A"
+                    }
 
                     let linkedWorkout = LinkedWorkout(
                         id: UUID(),

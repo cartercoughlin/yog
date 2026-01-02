@@ -239,7 +239,7 @@ struct WeeklyPlan: Identifiable, Codable {
 }
 
 // MARK: - Training Plan
-struct TrainingPlan: Identifiable, Codable {
+struct TrainingPlan: Identifiable {
     let id: UUID
     let name: String
     let raceDistance: RaceDistance
@@ -279,6 +279,52 @@ struct TrainingPlan: Identifiable, Codable {
         self.vdot = vdot
         self.allowRecoveryAdjustments = allowRecoveryAdjustments
         self.createdDate = createdDate
+    }
+}
+
+// MARK: - Codable Conformance
+extension TrainingPlan: Codable {
+    enum CodingKeys: String, CodingKey {
+        case id, name, raceDistance, raceDate, goalTimeInSeconds
+        case minWeeklyMileage, maxWeeklyMileage, daysPerWeek
+        case weeks, vdot, allowRecoveryAdjustments, createdDate
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        raceDistance = try container.decode(RaceDistance.self, forKey: .raceDistance)
+        raceDate = try container.decode(Date.self, forKey: .raceDate)
+        goalTimeInSeconds = try container.decode(TimeInterval.self, forKey: .goalTimeInSeconds)
+        minWeeklyMileage = try container.decode(Double.self, forKey: .minWeeklyMileage)
+        maxWeeklyMileage = try container.decode(Double.self, forKey: .maxWeeklyMileage)
+
+        // Provide default value for backward compatibility with old saved plans
+        daysPerWeek = try container.decodeIfPresent(Int.self, forKey: .daysPerWeek) ?? 6
+
+        weeks = try container.decode([WeeklyPlan].self, forKey: .weeks)
+        vdot = try container.decode(Double.self, forKey: .vdot)
+        allowRecoveryAdjustments = try container.decode(Bool.self, forKey: .allowRecoveryAdjustments)
+        createdDate = try container.decode(Date.self, forKey: .createdDate)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(raceDistance, forKey: .raceDistance)
+        try container.encode(raceDate, forKey: .raceDate)
+        try container.encode(goalTimeInSeconds, forKey: .goalTimeInSeconds)
+        try container.encode(minWeeklyMileage, forKey: .minWeeklyMileage)
+        try container.encode(maxWeeklyMileage, forKey: .maxWeeklyMileage)
+        try container.encode(daysPerWeek, forKey: .daysPerWeek)
+        try container.encode(weeks, forKey: .weeks)
+        try container.encode(vdot, forKey: .vdot)
+        try container.encode(allowRecoveryAdjustments, forKey: .allowRecoveryAdjustments)
+        try container.encode(createdDate, forKey: .createdDate)
     }
 
     var totalWeeks: Int {

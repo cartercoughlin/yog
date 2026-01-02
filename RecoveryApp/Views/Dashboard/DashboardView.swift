@@ -82,13 +82,16 @@ struct DashboardView: View {
 
                             // Today's Workout Card (if there's a training plan)
                             if let workout = todaysWorkout, let week = currentWeek {
-                                TodaysWorkoutCard(
-                                    workout: workout,
-                                    currentWeek: week,
-                                    recoveryScore: Double(recovery.overallScore),
-                                    allowAdjustments: trainingPlanViewModel.currentPlan?.allowRecoveryAdjustments ?? false
-                                )
-                                .environmentObject(themeManager)
+                                NavigationLink(destination: TrainingPlanView().environmentObject(themeManager)) {
+                                    TodaysWorkoutCard(
+                                        workout: workout,
+                                        currentWeek: week,
+                                        recoveryScore: Double(recovery.overallScore),
+                                        allowAdjustments: trainingPlanViewModel.currentPlan?.allowRecoveryAdjustments ?? false
+                                    )
+                                    .environmentObject(themeManager)
+                                }
+                                .buttonStyle(PlainButtonStyle())
                             }
 
                             // Most Recent Workout Card

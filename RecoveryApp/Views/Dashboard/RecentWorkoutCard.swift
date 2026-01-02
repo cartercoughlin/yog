@@ -23,8 +23,11 @@ struct RecentWorkoutCard: View {
         case .cycling: return .green
         case .swimming: return .cyan
         case .walking: return .orange
-        case .hiking: return .brown
-        case .other: return .purple
+        case .strength: return .red
+        case .yoga: return .purple
+        case .mobility: return .pink
+        case .rest: return .gray
+        case .other: return .indigo
         }
     }
 
@@ -34,8 +37,11 @@ struct RecentWorkoutCard: View {
         case .cycling: return "figure.outdoor.cycle"
         case .swimming: return "figure.pool.swim"
         case .walking: return "figure.walk"
-        case .hiking: return "figure.hiking"
-        case .other: return "figure.strengthtraining.traditional"
+        case .strength: return "figure.strengthtraining.traditional"
+        case .yoga: return "figure.yoga"
+        case .mobility: return "figure.flexibility"
+        case .rest: return "bed.double.fill"
+        case .other: return "figure.mixed.cardio"
         }
     }
 

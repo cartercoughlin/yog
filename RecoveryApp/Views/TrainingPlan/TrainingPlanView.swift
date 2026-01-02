@@ -463,8 +463,8 @@ struct SinglePlanView: View {
                 .font(.headline)
 
             ForEach(plan.weeks) { week in
-                NavigationLink {
-                    WeekDetailView(week: week, plan: plan, viewModel: viewModel)
+                Button {
+                    selectedWeekNumber = "\(week.weekNumber)"
                 } label: {
                     WeekRow(week: week)
                 }

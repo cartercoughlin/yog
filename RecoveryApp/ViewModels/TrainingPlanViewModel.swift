@@ -104,7 +104,12 @@ class TrainingPlanViewModel: ObservableObject {
             ? "\(selectedDistance.rawValue) - \(selectedRaceDate.formatted(date: .abbreviated, time: .omitted))"
             : planName.trimmingCharacters(in: .whitespaces)
 
+        // If editing existing plan, preserve its ID and createdDate
+        let planId = currentPlan?.id ?? UUID()
+        let planCreatedDate = currentPlan?.createdDate ?? Date()
+
         let newPlan = TrainingPlan(
+            id: planId,
             name: finalName,
             raceDistance: selectedDistance,
             raceDate: selectedRaceDate,
@@ -113,7 +118,8 @@ class TrainingPlanViewModel: ObservableObject {
             maxWeeklyMileage: maxWeeklyMileage,
             weeks: weeks,
             vdot: vdot,
-            allowRecoveryAdjustments: allowRecoveryAdjustments
+            allowRecoveryAdjustments: allowRecoveryAdjustments,
+            createdDate: planCreatedDate
         )
 
         // If editing existing plan, replace it

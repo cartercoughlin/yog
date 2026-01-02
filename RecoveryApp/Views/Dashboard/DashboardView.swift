@@ -36,6 +36,7 @@ struct DashboardView: View {
                         } else if let recovery = viewModel.todayRecovery {
                             RecoveryScoreCard(recovery: recovery)
                                 .environmentObject(themeManager)
+                                .padding(.top, 20)
                                 .onAppear {
                                     themeManager.updateTheme(score: recovery.overallScore)
                                 }
@@ -79,15 +80,6 @@ struct DashboardView: View {
                             metrics: recovery.metrics,
                             historicalMetrics: viewModel.historicalMetrics
                         )
-
-                        if let recommendation = viewModel.recommendation {
-                            NavigationLink {
-                                WorkoutDetailView(recommendation: recommendation)
-                            } label: {
-                                RecommendationPreviewCard(recommendation: recommendation)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
                         } else {
                             HealthDataEmptyStateView()
                         }
@@ -181,11 +173,11 @@ struct MetricsDetailCard: View {
     let historicalMetrics: [HealthMetrics]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Today's Metrics")
                 .font(.headline)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 if let hrv = metrics.hrv {
                     NavigationLink {
                         MetricDetailView(
@@ -272,14 +264,14 @@ struct MetricItem: View {
     let color: Color
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(.title3)
                 .foregroundStyle(color)
-                .frame(height: 28)
+                .frame(height: 24)
 
             Text(value)
-                .font(.title3)
+                .font(.headline)
                 .fontWeight(.semibold)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -288,8 +280,9 @@ struct MetricItem: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, minHeight: 120)
-        .padding()
+        .frame(maxWidth: .infinity, minHeight: 80)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 8)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)

@@ -52,6 +52,11 @@ struct DashboardView: View {
                             }
                             .padding(.horizontal)
 
+                            // Most Recent Workout Card
+                            if let recentWorkout = viewModel.mostRecentWorkout {
+                                RecentWorkoutCard(workout: recentWorkout)
+                            }
+
                         if !injuryViewModel.activeInjuries.isEmpty {
                             NavigationLink {
                                 InjuryTrackerView()

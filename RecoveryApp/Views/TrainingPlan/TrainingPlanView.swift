@@ -117,56 +117,56 @@ struct PlanListRowCard: View {
                     Circle()
                         .fill(raceColor)
                         .frame(width: 8, height: 8)
-                    
+
                     Text(plan.name)
                         .font(.headline)
                         .fontWeight(.bold)
-                        .lineLimit(1)
+                        .lineLimit(2)
                 }
 
                 Spacer()
 
-                Text(plan.raceDate, style: .date)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack(spacing: 16) {
-                Label {
-                    Text(plan.raceDistance.rawValue)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                } icon: {
-                    Image(systemName: "flag.fill")
-                        .font(.caption2)
-                }
-                .foregroundStyle(raceColor)
-
-                Label {
-                    Text("\(plan.weeksUntilRace) weeks")
-                        .font(.caption)
-                } icon: {
-                    Image(systemName: "calendar")
-                        .font(.caption2)
-                }
-                .foregroundStyle(.blue)
-
-                Label {
-                    Text(VDOTCalculator.formatTime(seconds: plan.goalTimeInSeconds))
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                } icon: {
-                    Image(systemName: "timer")
-                        .font(.caption2)
-                }
-                .foregroundStyle(.purple)
-            }
-            
-            HStack {
-                Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "flag.fill")
+                    .font(.caption2)
+                    .foregroundStyle(raceColor)
+                Text(plan.raceDistance.rawValue)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(raceColor)
+
+                Spacer()
+
+                Image(systemName: "calendar")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(plan.raceDate, style: .date)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "timer")
+                    .font(.caption2)
+                    .foregroundStyle(.purple)
+                Text("Goal: \(VDOTCalculator.formatTime(seconds: plan.goalTimeInSeconds))")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.purple)
+
+                Spacer()
+
+                Image(systemName: "figure.run")
+                    .font(.caption2)
+                    .foregroundStyle(.blue)
+                Text("\(plan.weeksUntilRace) weeks to go")
+                    .font(.caption)
+                    .foregroundStyle(.blue)
             }
         }
         .padding()
@@ -448,6 +448,9 @@ struct SinglePlanView: View {
             }
             .frame(height: 200)
             .chartXSelection(value: $selectedWeekNumber)
+            .chartGesture { _ in
+                // Enable tap gesture for chart selection
+            }
 
             HStack(spacing: 16) {
                 ForEach(TrainingPhase.allCases, id: \.self) { phase in

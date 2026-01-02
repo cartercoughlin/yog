@@ -11,6 +11,12 @@ struct WeekDetailView: View {
         return formatter
     }
 
+    private var dateRangeFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -41,6 +47,13 @@ struct WeekDetailView: View {
                     Text(week.phase.description)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+
+                    // Date range for the week
+                    if let endDate = Calendar.current.date(byAdding: .day, value: 6, to: week.startDate) {
+                        Text("\(week.startDate, formatter: dateRangeFormatter) - \(endDate, formatter: dateRangeFormatter)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Spacer()

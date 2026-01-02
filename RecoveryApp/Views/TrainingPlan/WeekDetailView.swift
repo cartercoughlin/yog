@@ -198,13 +198,21 @@ struct WeekDetailView: View {
                 }
             }
 
-            ForEach(week.workouts) { workout in
-                WorkoutCard(workout: workout, plan: plan)
-                    .environmentObject(viewModel)
+            List {
+                ForEach(week.workouts) { workout in
+                    WorkoutCard(workout: workout, plan: plan)
+                        .environmentObject(viewModel)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+                .onMove { indices, newOffset in
+                    moveWorkout(from: indices, to: newOffset)
+                }
             }
-            .onMove { indices, newOffset in
-                moveWorkout(from: indices, to: newOffset)
-            }
+            .listStyle(.plain)
+            .frame(height: CGFloat(week.workouts.count) * 160)
+            .scrollDisabled(true)
         }
         .sheet(isPresented: $showAddWorkout) {
             AddCustomWorkoutSheet(week: week, viewModel: viewModel)

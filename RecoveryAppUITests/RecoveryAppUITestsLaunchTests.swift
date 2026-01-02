@@ -1,13 +1,13 @@
 //
 //  RecoveryAppUITestsLaunchTests.swift
-//  RecoveryAppUITests
+//  YogUITests
 //
 //  Created by Carter Coughlin on 11/22/25.
 //
 
 import XCTest
 
-final class RecoveryAppUITestsLaunchTests: XCTestCase {
+final class YogUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

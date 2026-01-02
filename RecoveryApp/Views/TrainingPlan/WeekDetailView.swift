@@ -198,6 +198,7 @@ struct WorkoutCard: View {
     @State private var showManualEntry = false
     @State private var showActionSheet = false
     @State private var newDate: Date
+    @State private var isExpanded = false
     @EnvironmentObject private var viewModel: TrainingPlanViewModel
 
     init(workout: DailyWorkout, plan: TrainingPlan) {
@@ -417,6 +418,9 @@ struct WorkoutCard: View {
                 .presentationDetents([.medium])
             }
         }
+        .onLongPressGesture {
+            // Long press shows context menu options via sheet
+        }
         .contextMenu {
             Button {
                 showDatePicker = true
@@ -432,6 +436,14 @@ struct WorkoutCard: View {
                 }
             }
         }
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded { _ in
+                    withAnimation(.spring(response: 0.3)) {
+                        isExpanded.toggle()
+                    }
+                }
+        )
     }
 
     private var workoutColor: Color {

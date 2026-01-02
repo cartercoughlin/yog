@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "8AF554102ED20D6C0039D326"
-               BuildableName = "RecoveryApp.app"
-               BlueprintName = "RecoveryApp"
-               ReferencedContainer = "container:RecoveryApp.xcodeproj">
+               BuildableName = "Yog.app"
+               BlueprintName = "Yog"
+               ReferencedContainer = "container:Yog.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -36,9 +36,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "8AF5541F2ED20D6E0039D326"
-               BuildableName = "RecoveryAppTests.xctest"
-               BlueprintName = "RecoveryAppTests"
-               ReferencedContainer = "container:RecoveryApp.xcodeproj">
+               BuildableName = "YogTests.xctest"
+               BlueprintName = "YogTests"
+               ReferencedContainer = "container:Yog.xcodeproj">
             </BuildableReference>
          </TestableReference>
          <TestableReference
@@ -47,9 +47,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "8AF554292ED20D6E0039D326"
-               BuildableName = "RecoveryAppUITests.xctest"
-               BlueprintName = "RecoveryAppUITests"
-               ReferencedContainer = "container:RecoveryApp.xcodeproj">
+               BuildableName = "YogUITests.xctest"
+               BlueprintName = "YogUITests"
+               ReferencedContainer = "container:Yog.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -69,9 +69,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8AF554102ED20D6C0039D326"
-            BuildableName = "RecoveryApp.app"
-            BlueprintName = "RecoveryApp"
-            ReferencedContainer = "container:RecoveryApp.xcodeproj">
+            BuildableName = "Yog.app"
+            BlueprintName = "Yog"
+            ReferencedContainer = "container:Yog.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -86,9 +86,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8AF554102ED20D6C0039D326"
-            BuildableName = "RecoveryApp.app"
-            BlueprintName = "RecoveryApp"
-            ReferencedContainer = "container:RecoveryApp.xcodeproj">
+            BuildableName = "Yog.app"
+            BlueprintName = "Yog"
+            ReferencedContainer = "container:Yog.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

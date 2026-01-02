@@ -24,18 +24,18 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		8AF554112ED20D6C0039D326 /* RecoveryApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RecoveryApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		8AF554202ED20D6E0039D326 /* RecoveryAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RecoveryAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		8AF5542A2ED20D6E0039D326 /* RecoveryAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RecoveryAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8AF554112ED20D6C0039D326 /* Yog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Yog.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8AF554202ED20D6E0039D326 /* YogTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = YogTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8AF5542A2ED20D6E0039D326 /* YogUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = YogUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		8AF554662ED213A50039D326 /* Exceptions for "RecoveryApp" folder in "RecoveryApp" target */ = {
+		8AF554662ED213A50039D326 /* Exceptions for "RecoveryApp" folder in "Yog" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = 8AF554102ED20D6C0039D326 /* RecoveryApp */;
+			target = 8AF554102ED20D6C0039D326 /* Yog */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -43,7 +43,7 @@
 		8AF554132ED20D6C0039D326 /* RecoveryApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				8AF554662ED213A50039D326 /* Exceptions for "RecoveryApp" folder in "RecoveryApp" target */,
+				8AF554662ED213A50039D326 /* Exceptions for "RecoveryApp" folder in "Yog" target */,
 			);
 			path = RecoveryApp;
 			sourceTree = "<group>";
@@ -98,9 +98,9 @@
 		8AF554122ED20D6C0039D326 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				8AF554112ED20D6C0039D326 /* RecoveryApp.app */,
-				8AF554202ED20D6E0039D326 /* RecoveryAppTests.xctest */,
-				8AF5542A2ED20D6E0039D326 /* RecoveryAppUITests.xctest */,
+				8AF554112ED20D6C0039D326 /* Yog.app */,
+				8AF554202ED20D6E0039D326 /* YogTests.xctest */,
+				8AF5542A2ED20D6E0039D326 /* YogUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -108,9 +108,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		8AF554102ED20D6C0039D326 /* RecoveryApp */ = {
+		8AF554102ED20D6C0039D326 /* Yog */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 8AF554342ED20D6E0039D326 /* Build configuration list for PBXNativeTarget "RecoveryApp" */;
+			buildConfigurationList = 8AF554342ED20D6E0039D326 /* Build configuration list for PBXNativeTarget "Yog" */;
 			buildPhases = (
 				8AF5540D2ED20D6C0039D326 /* Sources */,
 				8AF5540E2ED20D6C0039D326 /* Frameworks */,
@@ -123,16 +123,16 @@
 			fileSystemSynchronizedGroups = (
 				8AF554132ED20D6C0039D326 /* RecoveryApp */,
 			);
-			name = RecoveryApp;
+			name = Yog;
 			packageProductDependencies = (
 			);
 			productName = RecoveryApp;
-			productReference = 8AF554112ED20D6C0039D326 /* RecoveryApp.app */;
+			productReference = 8AF554112ED20D6C0039D326 /* Yog.app */;
 			productType = "com.apple.product-type.application";
 		};
-		8AF5541F2ED20D6E0039D326 /* RecoveryAppTests */ = {
+		8AF5541F2ED20D6E0039D326 /* YogTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 8AF554372ED20D6E0039D326 /* Build configuration list for PBXNativeTarget "RecoveryAppTests" */;
+			buildConfigurationList = 8AF554372ED20D6E0039D326 /* Build configuration list for PBXNativeTarget "YogTests" */;
 			buildPhases = (
 				8AF5541C2ED20D6E0039D326 /* Sources */,
 				8AF5541D2ED20D6E0039D326 /* Frameworks */,
@@ -146,16 +146,16 @@
 			fileSystemSynchronizedGroups = (
 				8AF554232ED20D6E0039D326 /* RecoveryAppTests */,
 			);
-			name = RecoveryAppTests;
+			name = YogTests;
 			packageProductDependencies = (
 			);
 			productName = RecoveryAppTests;
-			productReference = 8AF554202ED20D6E0039D326 /* RecoveryAppTests.xctest */;
+			productReference = 8AF554202ED20D6E0039D326 /* YogTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		8AF554292ED20D6E0039D326 /* RecoveryAppUITests */ = {
+		8AF554292ED20D6E0039D326 /* YogUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 8AF5543A2ED20D6E0039D326 /* Build configuration list for PBXNativeTarget "RecoveryAppUITests" */;
+			buildConfigurationList = 8AF5543A2ED20D6E0039D326 /* Build configuration list for PBXNativeTarget "YogUITests" */;
 			buildPhases = (
 				8AF554262ED20D6E0039D326 /* Sources */,
 				8AF554272ED20D6E0039D326 /* Frameworks */,
@@ -169,11 +169,11 @@
 			fileSystemSynchronizedGroups = (
 				8AF5542D2ED20D6E0039D326 /* RecoveryAppUITests */,
 			);
-			name = RecoveryAppUITests;
+			name = YogUITests;
 			packageProductDependencies = (
 			);
 			productName = RecoveryAppUITests;
-			productReference = 8AF5542A2ED20D6E0039D326 /* RecoveryAppUITests.xctest */;
+			productReference = 8AF5542A2ED20D6E0039D326 /* YogUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -199,7 +199,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 8AF5540C2ED20D6C0039D326 /* Build configuration list for PBXProject "RecoveryApp" */;
+			buildConfigurationList = 8AF5540C2ED20D6C0039D326 /* Build configuration list for PBXProject "Yog" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -213,9 +213,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				8AF554102ED20D6C0039D326 /* RecoveryApp */,
-				8AF5541F2ED20D6E0039D326 /* RecoveryAppTests */,
-				8AF554292ED20D6E0039D326 /* RecoveryAppUITests */,
+				8AF554102ED20D6C0039D326 /* Yog */,
+				8AF5541F2ED20D6E0039D326 /* YogTests */,
+				8AF554292ED20D6E0039D326 /* YogUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -271,12 +271,12 @@
 /* Begin PBXTargetDependency section */
 		8AF554222ED20D6E0039D326 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 8AF554102ED20D6C0039D326 /* RecoveryApp */;
+			target = 8AF554102ED20D6C0039D326 /* Yog */;
 			targetProxy = 8AF554212ED20D6E0039D326 /* PBXContainerItemProxy */;
 		};
 		8AF5542C2ED20D6E0039D326 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 8AF554102ED20D6C0039D326 /* RecoveryApp */;
+			target = 8AF554102ED20D6C0039D326 /* Yog */;
 			targetProxy = 8AF5542B2ED20D6E0039D326 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -495,7 +495,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RecoveryApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RecoveryApp";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Yog.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Yog";
 			};
 			name = Debug;
 		};
@@ -517,7 +517,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RecoveryApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RecoveryApp";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Yog.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Yog";
 			};
 			name = Release;
 		};
@@ -564,7 +564,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		8AF5540C2ED20D6C0039D326 /* Build configuration list for PBXProject "RecoveryApp" */ = {
+		8AF5540C2ED20D6C0039D326 /* Build configuration list for PBXProject "Yog" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				8AF554322ED20D6E0039D326 /* Debug */,
@@ -573,7 +573,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		8AF554342ED20D6E0039D326 /* Build configuration list for PBXNativeTarget "RecoveryApp" */ = {
+		8AF554342ED20D6E0039D326 /* Build configuration list for PBXNativeTarget "Yog" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				8AF554352ED20D6E0039D326 /* Debug */,
@@ -582,7 +582,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		8AF554372ED20D6E0039D326 /* Build configuration list for PBXNativeTarget "RecoveryAppTests" */ = {
+		8AF554372ED20D6E0039D326 /* Build configuration list for PBXNativeTarget "YogTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				8AF554382ED20D6E0039D326 /* Debug */,
@@ -591,7 +591,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		8AF5543A2ED20D6E0039D326 /* Build configuration list for PBXNativeTarget "RecoveryAppUITests" */ = {
+		8AF5543A2ED20D6E0039D326 /* Build configuration list for PBXNativeTarget "YogUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				8AF5543B2ED20D6E0039D326 /* Debug */,

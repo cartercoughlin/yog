@@ -41,7 +41,15 @@ struct HistoryView: View {
                     .padding(.bottom, 20)
                 }
             }
-            .navigationTitle("History")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 44)
+                }
+            }
             .task {
                 await viewModel.loadHistory()
             }
@@ -108,7 +116,7 @@ struct HistoryView: View {
                 if let selectedDate = selectedDate,
                    let selectedRecovery = viewModel.recoveryHistory.first(where: { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }) {
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(String(format: "%.0f", selectedRecovery.overallScore))
+                        Text("\(selectedRecovery.overallScore)")
                             .font(.headline)
                             .foregroundColor(.blue)
                         Text(selectedRecovery.date.formatted(.dateTime.month(.abbreviated).day()))
@@ -123,14 +131,14 @@ struct HistoryView: View {
                 ForEach(Array(viewModel.recoveryHistory.enumerated()), id: \.element.id) { index, recovery in
                     LineMark(
                         x: .value("Date", recovery.date),
-                        y: .value("Score", recovery.overallScore)
+                        y: .value("Score", Double(recovery.overallScore))
                     )
                     .foregroundStyle(.blue)
                     .interpolationMethod(.catmullRom)
 
                     AreaMark(
                         x: .value("Date", recovery.date),
-                        y: .value("Score", recovery.overallScore)
+                        y: .value("Score", Double(recovery.overallScore))
                     )
                     .foregroundStyle(
                         LinearGradient(
@@ -145,7 +153,7 @@ struct HistoryView: View {
                     if let selectedDate = selectedDate, Calendar.current.isDate(recovery.date, inSameDayAs: selectedDate) {
                         PointMark(
                             x: .value("Date", recovery.date),
-                            y: .value("Score", recovery.overallScore)
+                            y: .value("Score", Double(recovery.overallScore))
                         )
                         .foregroundStyle(.blue)
                         .symbolSize(100)

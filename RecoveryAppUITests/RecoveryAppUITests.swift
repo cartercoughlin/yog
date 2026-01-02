@@ -1,13 +1,13 @@
 //
 //  RecoveryAppUITests.swift
-//  RecoveryAppUITests
+//  YogUITests
 //
 //  Created by Carter Coughlin on 11/22/25.
 //
 
 import XCTest
 
-final class RecoveryAppUITests: XCTestCase {
+final class YogUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

@@ -22,19 +22,12 @@ struct ContentView: View {
                 }
                 .tag(0)
 
-            HistoryView()
-                .environmentObject(themeManager)
-                .tabItem {
-                    Label("History", systemImage: "chart.line.uptrend.xyaxis")
-                }
-                .tag(1)
-
             TrainingPlanView()
                 .environmentObject(themeManager)
                 .tabItem {
                     Label("Training", systemImage: "figure.run")
                 }
-                .tag(2)
+                .tag(1)
 
             InjuryTrackerView()
                 .environmentObject(injuryViewModel)
@@ -42,7 +35,7 @@ struct ContentView: View {
                 .tabItem {
                     Label("Injuries", systemImage: "bandage.fill")
                 }
-                .tag(3)
+                .tag(2)
         }
     }
 }

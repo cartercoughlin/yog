@@ -417,26 +417,32 @@ struct SinglePlanView: View {
                 }
             }
 
+            // Precompute arrays to reduce type-checking complexity
+            let weeks: [WeeklyPlan] = plan.weeks
+            let weeksWithActuals: [WeeklyPlan] = weeks.filter { $0.actualMileage > 0 }
+
             Chart {
-                ForEach(plan.weeks) { week in
+                // Planned mileage bars
+                ForEach(weeks) { week in
                     BarMark(
-                        x: .value("Week", "\(week.weekNumber)"),
+                        x: .value("Week", String(week.weekNumber)),
                         y: .value("Miles", week.totalMileage)
                     )
                     .foregroundStyle(colorForPhase(week.phase))
-                    .opacity(selectedWeekNumber == "\(week.weekNumber)" ? 1.0 : 0.7)
+                    .opacity(selectedWeekNumber == String(week.weekNumber) ? 1.0 : 0.7)
                 }
 
-                ForEach(plan.weeks.filter { $0.actualMileage > 0 }) { week in
+                // Actual mileage line + points
+                ForEach(weeksWithActuals) { week in
                     LineMark(
-                        x: .value("Week", "\(week.weekNumber)"),
+                        x: .value("Week", String(week.weekNumber)),
                         y: .value("Actual Miles", week.actualMileage)
                     )
                     .foregroundStyle(Color.green)
                     .lineStyle(StrokeStyle(lineWidth: 3))
 
                     PointMark(
-                        x: .value("Week", "\(week.weekNumber)"),
+                        x: .value("Week", String(week.weekNumber)),
                         y: .value("Actual Miles", week.actualMileage)
                     )
                     .foregroundStyle(Color.green)
@@ -446,9 +452,6 @@ struct SinglePlanView: View {
             }
             .frame(height: 200)
             .chartXSelection(value: $selectedWeekNumber)
-            .chartGesture { _ in
-                // Enable tap gesture for chart selection
-            }
         }
         .padding()
         .overlay(

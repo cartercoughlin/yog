@@ -5,6 +5,7 @@ struct WeekDetailView: View {
     let plan: TrainingPlan
     @ObservedObject var viewModel: TrainingPlanViewModel
     @State private var showAddWorkout = false
+    @State private var editMode: EditMode = .inactive
 
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -34,6 +35,16 @@ struct WeekDetailView: View {
         }
         .navigationTitle("Week \(week.weekNumber)")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(editMode == .active ? "Done" : "Edit") {
+                    withAnimation {
+                        editMode = editMode == .active ? .inactive : .active
+                    }
+                }
+            }
+        }
+        .environment(\.editMode, $editMode)
     }
 
     private var weekHeader: some View {
@@ -177,11 +188,13 @@ struct WeekDetailView: View {
 
                 Spacer()
 
-                Button {
-                    showAddWorkout = true
-                } label: {
-                    Label("Add Workout", systemImage: "plus.circle.fill")
-                        .font(.subheadline)
+                if editMode == .inactive {
+                    Button {
+                        showAddWorkout = true
+                    } label: {
+                        Label("Add Workout", systemImage: "plus.circle.fill")
+                            .font(.subheadline)
+                    }
                 }
             }
 
@@ -189,9 +202,36 @@ struct WeekDetailView: View {
                 WorkoutCard(workout: workout, plan: plan)
                     .environmentObject(viewModel)
             }
+            .onMove { indices, newOffset in
+                moveWorkout(from: indices, to: newOffset)
+            }
         }
         .sheet(isPresented: $showAddWorkout) {
             AddCustomWorkoutSheet(week: week, viewModel: viewModel)
+        }
+    }
+
+    private func moveWorkout(from source: IndexSet, to destination: Int) {
+        guard let sourceIndex = source.first else { return }
+
+        // Get the workouts in order
+        var workouts = week.workouts
+        let movedWorkout = workouts[sourceIndex]
+
+        // Remove from source
+        workouts.remove(at: sourceIndex)
+
+        // Insert at destination
+        let adjustedDestination = sourceIndex < destination ? destination - 1 : destination
+        workouts.insert(movedWorkout, at: adjustedDestination)
+
+        // Update dates to match new positions (assuming workouts are sorted by date)
+        let sortedByDate = week.workouts.sorted { $0.date < $1.date }
+        for (index, workout) in workouts.enumerated() {
+            if index < sortedByDate.count {
+                let newDate = sortedByDate[index].date
+                viewModel.moveWorkout(from: workout.id, toDay: newDate)
+            }
         }
     }
 

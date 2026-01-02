@@ -9,6 +9,14 @@ struct TrainingPlanSetupView: View {
         viewModel.currentPlan != nil
     }
 
+    private var actualTrainingWeeks: Int {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let raceDay = calendar.startOfDay(for: viewModel.selectedRaceDate)
+        let components = calendar.dateComponents([.weekOfYear], from: today, to: raceDay)
+        return max(1, components.weekOfYear ?? 16)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -171,7 +179,7 @@ struct TrainingPlanSetupView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         InfoRow(
                             title: "Training Duration",
-                            value: "\(viewModel.selectedDistance.recommendedWeeks) weeks"
+                            value: "\(actualTrainingWeeks) weeks"
                         )
 
                         InfoRow(
@@ -181,7 +189,7 @@ struct TrainingPlanSetupView: View {
 
                         InfoRow(
                             title: "Quality Days",
-                            value: "3 per week"
+                            value: "Starts week 5"
                         )
                     }
                 } header: {

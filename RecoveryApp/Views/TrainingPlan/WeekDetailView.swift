@@ -36,10 +36,18 @@ struct WeekDetailView: View {
         .navigationTitle("Week \(week.weekNumber)")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(editMode == .active ? "Done" : "Edit") {
-                    withAnimation {
-                        editMode = editMode == .active ? .inactive : .active
+            ToolbarItem(placement: .navigationBarLeading) {
+                if editMode == .active {
+                    Button("Cancel") {
+                        withAnimation {
+                            editMode = .inactive
+                        }
+                    }
+                } else {
+                    Button("Edit") {
+                        withAnimation {
+                            editMode = .active
+                        }
                     }
                 }
             }
@@ -200,9 +208,9 @@ struct WeekDetailView: View {
 
             List {
                 ForEach(week.workouts) { workout in
-                    WorkoutCard(workout: workout, plan: plan)
+                    WorkoutCard(workout: workout, plan: plan, isEditMode: editMode == .active)
                         .environmentObject(viewModel)
-                        .listRowInsets(EdgeInsets())
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 12, trailing: editMode == .active ? 8 : 0))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
@@ -211,7 +219,7 @@ struct WeekDetailView: View {
                 }
             }
             .listStyle(.plain)
-            .frame(height: CGFloat(week.workouts.count) * 160)
+            .frame(height: CGFloat(week.workouts.count) * 170)
             .scrollDisabled(true)
         }
         .sheet(isPresented: $showAddWorkout) {
@@ -220,27 +228,19 @@ struct WeekDetailView: View {
     }
 
     private func moveWorkout(from source: IndexSet, to destination: Int) {
-        guard let sourceIndex = source.first else { return }
+        guard let sourceIndex = source.first,
+              sourceIndex < week.workouts.count else { return }
 
-        // Get the workouts in order
-        var workouts = week.workouts
-        let movedWorkout = workouts[sourceIndex]
+        // Calculate the actual destination index
+        let destIndex = sourceIndex < destination ? destination - 1 : destination
+        guard destIndex < week.workouts.count else { return }
 
-        // Remove from source
-        workouts.remove(at: sourceIndex)
+        let movedWorkout = week.workouts[sourceIndex]
+        let targetWorkout = week.workouts[destIndex]
 
-        // Insert at destination
-        let adjustedDestination = sourceIndex < destination ? destination - 1 : destination
-        workouts.insert(movedWorkout, at: adjustedDestination)
-
-        // Update dates to match new positions (assuming workouts are sorted by date)
-        let sortedByDate = week.workouts.sorted { $0.date < $1.date }
-        for (index, workout) in workouts.enumerated() {
-            if index < sortedByDate.count {
-                let newDate = sortedByDate[index].date
-                viewModel.moveWorkout(from: workout.id, toDay: newDate)
-            }
-        }
+        // Simply move the workout to the same date as the target workout
+        // This allows multiple workouts per day
+        viewModel.moveWorkout(from: movedWorkout.id, toDay: targetWorkout.date)
     }
 
     private var phaseColor: Color {
@@ -256,6 +256,7 @@ struct WeekDetailView: View {
 struct WorkoutCard: View {
     let workout: DailyWorkout
     let plan: TrainingPlan
+    let isEditMode: Bool
     @State private var showLinkSheet = false
     @State private var showDatePicker = false
     @State private var showManualEntry = false
@@ -264,9 +265,10 @@ struct WorkoutCard: View {
     @State private var isExpanded = false
     @EnvironmentObject private var viewModel: TrainingPlanViewModel
 
-    init(workout: DailyWorkout, plan: TrainingPlan) {
+    init(workout: DailyWorkout, plan: TrainingPlan, isEditMode: Bool = false) {
         self.workout = workout
         self.plan = plan
+        self.isEditMode = isEditMode
         _newDate = State(initialValue: workout.date)
     }
 
@@ -314,22 +316,28 @@ struct WorkoutCard: View {
         return formatter
     }
 
+    private var dateNumberFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d"
+        return formatter
+    }
+
     private var mainCardContent: some View {
         VStack(spacing: 12) {
             // Main card content
             HStack(spacing: 12) {
                 // Day indicator
                 VStack(spacing: 4) {
-                    Text(dayOfWeekFormatter.string(from: workout.date))
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(workout.type.isQuality ? .white : .secondary)
+                    Text(dateNumberFormatter.string(from: workout.date))
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundStyle(workout.type.isQuality ? .white : .primary)
 
                     Circle()
                         .fill(isSkipped ? Color.gray : (workout.isCompleted ? Color.green : workoutColor))
                         .frame(width: 8, height: 8)
                 }
-                .frame(width: 50)
+                .frame(width: 40)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
@@ -562,7 +570,7 @@ struct WorkoutCard: View {
             }
         }
         .simultaneousGesture(
-            TapGesture()
+            isEditMode ? nil : TapGesture()
                 .onEnded { _ in
                     withAnimation(.spring(response: 0.3)) {
                         isExpanded.toggle()

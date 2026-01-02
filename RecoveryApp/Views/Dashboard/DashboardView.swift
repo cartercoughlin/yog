@@ -73,16 +73,11 @@ struct DashboardView: View {
 
                             // 7-day average - moved closer to score
                             if let trend = viewModel.weeklyTrend {
-                                HStack {
-                                    Spacer()
-                                    WeeklyTrendCard(
-                                        average: trend.average,
-                                        trend: trend.trend
-                                    )
-                                    .environmentObject(themeManager)
-                                    .frame(maxWidth: 280)
-                                    Spacer()
-                                }
+                                WeeklyTrendCard(
+                                    average: trend.average,
+                                    trend: trend.trend
+                                )
+                                .environmentObject(themeManager)
                                 .padding(.top, -8)
                             }
 

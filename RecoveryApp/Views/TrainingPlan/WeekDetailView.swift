@@ -266,7 +266,7 @@ struct WorkoutCard: View {
         return formatter
     }
 
-    var body: some View {
+    private var mainCardContent: some View {
         VStack(spacing: 12) {
             // Main card content
             HStack(spacing: 12) {
@@ -418,6 +418,10 @@ struct WorkoutCard: View {
                     lineWidth: 1
                 )
         )
+    }
+
+    var body: some View {
+        mainCardContent
         .confirmationDialog("", isPresented: $showActionSheet) {
             Button("Link Workout") {
                 showLinkSheet = true

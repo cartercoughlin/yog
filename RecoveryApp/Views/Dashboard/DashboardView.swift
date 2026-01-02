@@ -29,6 +29,15 @@ struct DashboardView: View {
         return nil
     }
 
+    private var currentWeek: WeeklyPlan? {
+        guard let currentPlan = trainingPlanViewModel.currentPlan else { return nil }
+        let today = Date()
+
+        return currentPlan.weeks.first { week in
+            today >= week.startDate && today <= week.endDate
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -72,10 +81,12 @@ struct DashboardView: View {
                             .padding(.horizontal)
 
                             // Today's Workout Card (if there's a training plan)
-                            if let workout = todaysWorkout {
+                            if let workout = todaysWorkout, let week = currentWeek {
                                 TodaysWorkoutCard(
                                     workout: workout,
-                                    recoveryScore: recovery.overallScore
+                                    currentWeek: week,
+                                    recoveryScore: Double(recovery.overallScore),
+                                    allowAdjustments: trainingPlanViewModel.currentPlan?.allowRecoveryAdjustments ?? false
                                 )
                                 .environmentObject(themeManager)
                             }
@@ -423,10 +434,27 @@ struct EmptyStateView: View {
 
 struct TodaysWorkoutCard: View {
     let workout: DailyWorkout
+    let currentWeek: WeeklyPlan
     let recoveryScore: Double
+    let allowAdjustments: Bool
     @EnvironmentObject var themeManager: ThemeManager
 
+    private var adjustmentRecommendation: TrainingAdjustmentEngine.AdjustmentRecommendation? {
+        guard allowAdjustments else { return nil }
+        return TrainingAdjustmentEngine.analyzeRecoveryForAdjustments(
+            recoveryScore: recoveryScore,
+            currentWeek: currentWeek,
+            historicalScores: []
+        )
+    }
+
     private var recoveryBlurb: String? {
+        // If we have adjustment recommendations, use those
+        if let recommendation = adjustmentRecommendation, recommendation.shouldAdjust {
+            return recommendation.message
+        }
+
+        // Otherwise, use simple recovery-based guidance
         if recoveryScore < 50 {
             return "⚠️ Your recovery is low. Remember, all runs are effort-based - listen to your body and scale back intensity if needed."
         } else if recoveryScore < 65 {
@@ -435,6 +463,13 @@ struct TodaysWorkoutCard: View {
             return "💚 Your recovery is excellent! You're ready for today's workout."
         }
         return nil
+    }
+
+    private var workoutAdjustmentForToday: TrainingAdjustmentEngine.WorkoutAdjustment? {
+        guard let recommendation = adjustmentRecommendation else { return nil }
+        return recommendation.suggestedWorkoutChanges.first { adjustment in
+            adjustment.originalType == workout.type
+        }
     }
 
     var body: some View {
@@ -478,6 +513,32 @@ struct TodaysWorkoutCard: View {
             Text(workout.description)
                 .font(.subheadline)
                 .foregroundStyle(.primary)
+
+            // Show specific workout adjustment if available
+            if let adjustment = workoutAdjustmentForToday {
+                Divider()
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                        Text("Suggested Adjustment")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.orange)
+                    }
+
+                    Text("Consider: \(adjustment.suggestedType.rawValue) instead")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    Text(adjustment.reason)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 6)
+            }
 
             if let blurb = recoveryBlurb {
                 Divider()

@@ -222,6 +222,10 @@ struct WorkoutCard: View {
         _newDate = State(initialValue: workout.date)
     }
 
+    private var isSkipped: Bool {
+        workout.description.contains("(Skipped)")
+    }
+
     // Calculate pace dynamically based on current pace calculation logic
     private var calculatedPace: String? {
         guard workout.type != .rest else { return nil }
@@ -255,7 +259,7 @@ struct WorkoutCard: View {
                         .foregroundStyle(workout.type.isQuality ? .white : .secondary)
 
                     Circle()
-                        .fill(workout.isCompleted ? Color.green : workoutColor)
+                        .fill(isSkipped ? Color.gray : (workout.isCompleted ? Color.green : workoutColor))
                         .frame(width: 8, height: 8)
                 }
                 .frame(width: 50)
@@ -277,9 +281,9 @@ struct WorkoutCard: View {
                         }
 
                         if workout.isCompleted {
-                            Image(systemName: "checkmark.circle.fill")
+                            Image(systemName: isSkipped ? "xmark.circle.fill" : "checkmark.circle.fill")
                                 .font(.caption)
-                                .foregroundStyle(.green)
+                                .foregroundStyle(isSkipped ? .gray : .green)
                         }
 
                         Spacer()
@@ -382,27 +386,28 @@ struct WorkoutCard: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(workout.isCompleted ? Color.green.opacity(0.05) : Color(.systemBackground))
+                .fill(isSkipped ? Color.gray.opacity(0.05) : (workout.isCompleted ? Color.green.opacity(0.05) : Color(.systemBackground)))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(
-                    workout.isCompleted ? Color.green.opacity(0.3) :
-                    (workout.type.isQuality ? workoutColor.opacity(0.3) : Color.clear),
+                    isSkipped ? Color.gray.opacity(0.3) : (workout.isCompleted ? Color.green.opacity(0.3) :
+                    (workout.type.isQuality ? workoutColor.opacity(0.3) : Color.clear)),
                     lineWidth: 1
                 )
         )
-        .confirmationDialog("Log Workout", isPresented: $showActionSheet) {
-            Button("Link HealthKit Workout") {
+        .confirmationDialog("", isPresented: $showActionSheet) {
+            Button("Link Workout") {
                 showLinkSheet = true
             }
-            Button("Enter Manual Mileage") {
+            Button("Enter Manually") {
                 showManualEntry = true
             }
-            Button("Skip This Workout") {
+            Button("Skip Workout") {
                 viewModel.skipWorkout(workoutId: workout.id)
             }
-            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("How would you like to log this workout?")
         }
         .sheet(isPresented: $showLinkSheet) {
             WorkoutLinkingSheet(workout: workout)
@@ -460,6 +465,14 @@ struct WorkoutCard: View {
                     viewModel.unlinkWorkoutFromDay(workoutId: workout.id)
                 } label: {
                     Label("Unlink Workout", systemImage: "link.badge.minus")
+                }
+            }
+
+            if isSkipped {
+                Button {
+                    viewModel.unskipWorkout(workoutId: workout.id)
+                } label: {
+                    Label("Unskip Workout", systemImage: "arrow.uturn.backward")
                 }
             }
         }

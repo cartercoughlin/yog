@@ -71,27 +71,53 @@ struct DashboardView: View {
                             .buttonStyle(PlainButtonStyle())
                             .padding(.top, 20)
 
+                            // 7-day average - moved closer to score
+                            if let trend = viewModel.weeklyTrend {
+                                HStack {
+                                    Spacer()
+                                    WeeklyTrendCard(
+                                        average: trend.average,
+                                        trend: trend.trend
+                                    )
+                                    .environmentObject(themeManager)
+                                    .frame(maxWidth: 280)
+                                    Spacer()
+                                }
+                                .padding(.top, -8)
+                            }
+
                             Button {
                                 showAlgorithmBreakdown = true
                             } label: {
                                 Label("How is this calculated?", systemImage: "info.circle")
                                     .font(.subheadline)
-                                    .foregroundStyle(themeManager.currentTheme.primaryTextColor)
+                                    .foregroundStyle(.blue)
                             }
                             .padding(.horizontal)
+                            .padding(.vertical, 4)
 
                             // Today's Workout Card (if there's a training plan)
-                            if let workout = todaysWorkout, let week = currentWeek {
-                                NavigationLink(destination: TrainingPlanView().environmentObject(themeManager)) {
+                            if let workout = todaysWorkout,
+                               let week = currentWeek,
+                               let plan = trainingPlanViewModel.currentPlan {
+                                NavigationLink(destination:
+                                    WeekDetailView(
+                                        week: week,
+                                        plan: plan,
+                                        viewModel: trainingPlanViewModel
+                                    )
+                                    .environmentObject(themeManager)
+                                ) {
                                     TodaysWorkoutCard(
                                         workout: workout,
                                         currentWeek: week,
                                         recoveryScore: Double(recovery.overallScore),
-                                        allowAdjustments: trainingPlanViewModel.currentPlan?.allowRecoveryAdjustments ?? false
+                                        allowAdjustments: plan.allowRecoveryAdjustments
                                     )
                                     .environmentObject(themeManager)
                                 }
                                 .buttonStyle(PlainButtonStyle())
+                                .padding(.top, -8)
                             }
 
                             // Most Recent Workout Card
@@ -108,14 +134,6 @@ struct DashboardView: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                         }
-
-                            if let trend = viewModel.weeklyTrend {
-                                WeeklyTrendCard(
-                                    average: trend.average,
-                                    trend: trend.trend
-                                )
-                                .environmentObject(themeManager)
-                            }
 
                         MetricsDetailCard(
                             metrics: recovery.metrics,
@@ -483,8 +501,16 @@ struct TodaysWorkoutCard: View {
                     .font(.title2)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Today's Workout")
-                        .font(.headline)
+                    HStack(spacing: 4) {
+                        Text("Today's Workout")
+                            .font(.headline)
+
+                        if workout.isCompleted {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.subheadline)
+                        }
+                    }
                     Text(workout.type.rawValue)
                         .font(.caption)
                         .foregroundStyle(.secondary)

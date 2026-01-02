@@ -197,13 +197,34 @@ struct HistoryView: View {
                 .font(.headline)
                 .padding(.horizontal)
 
-            ForEach(viewModel.workoutHistory.prefix(10)) { workout in
-                NavigationLink(destination: WorkoutDetailHistoryView(workout: workout)) {
-                    WorkoutHistoryRow(workout: workout)
+            ForEach(groupedWorkouts, id: \.key) { group in
+                VStack(alignment: .leading, spacing: 8) {
+                    // Date header
+                    Text(group.key, style: .date)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+
+                    // Workouts for this day
+                    ForEach(group.value) { workout in
+                        NavigationLink(destination: WorkoutDetailHistoryView(workout: workout)) {
+                            WorkoutHistoryRow(workout: workout)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .buttonStyle(.plain)
             }
         }
+    }
+
+    private var groupedWorkouts: [(key: Date, value: [WorkoutData])] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: Array(viewModel.workoutHistory.prefix(10))) { workout in
+            calendar.startOfDay(for: workout.date)
+        }
+        return grouped.sorted { $0.key > $1.key }
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {

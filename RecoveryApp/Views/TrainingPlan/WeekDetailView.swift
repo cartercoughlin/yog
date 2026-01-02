@@ -394,15 +394,18 @@ struct WorkoutCard: View {
 
             // Action button for incomplete workouts
             if workout.date <= Date() && !workout.isCompleted {
-                Button {
-                    showActionSheet = true
-                } label: {
-                    Text("Log Workout")
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                HStack {
+                    Spacer()
+                    Button {
+                        showActionSheet = true
+                    } label: {
+                        Text("Log Workout")
+                            .font(.caption)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
             }
         }
         .padding()

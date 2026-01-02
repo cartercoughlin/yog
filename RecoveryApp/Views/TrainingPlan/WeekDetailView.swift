@@ -6,6 +6,7 @@ struct WeekDetailView: View {
     @ObservedObject var viewModel: TrainingPlanViewModel
     @State private var showAddWorkout = false
     @State private var editMode: EditMode = .inactive
+    @State private var pendingMoves: [UUID: Date] = [:]
 
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -38,7 +39,9 @@ struct WeekDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 if editMode == .active {
-                    Button("Cancel") {
+                    Button("Done") {
+                        // Apply all pending moves before exiting edit mode
+                        applyPendingMoves()
                         withAnimation {
                             editMode = .inactive
                         }
@@ -238,9 +241,17 @@ struct WeekDetailView: View {
         let movedWorkout = week.workouts[sourceIndex]
         let targetWorkout = week.workouts[destIndex]
 
-        // Simply move the workout to the same date as the target workout
-        // This allows multiple workouts per day
-        viewModel.moveWorkout(from: movedWorkout.id, toDay: targetWorkout.date)
+        // Accumulate the move in pending moves instead of immediately persisting
+        pendingMoves[movedWorkout.id] = targetWorkout.date
+    }
+
+    private func applyPendingMoves() {
+        // Apply all pending moves to the view model at once
+        for (workoutId, newDate) in pendingMoves {
+            viewModel.moveWorkout(from: workoutId, toDay: newDate)
+        }
+        // Clear pending moves after applying
+        pendingMoves.removeAll()
     }
 
     private var phaseColor: Color {
@@ -326,23 +337,11 @@ struct WorkoutCard: View {
         VStack(spacing: 12) {
             // Main card content
             HStack(spacing: 12) {
-                // Day indicator
-                VStack(spacing: 4) {
-                    Text(dateNumberFormatter.string(from: workout.date))
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .foregroundStyle(workout.type.isQuality ? .white : .primary)
-
-                    Circle()
-                        .fill(isSkipped ? Color.gray : (workout.isCompleted ? Color.green : workoutColor))
-                        .frame(width: 8, height: 8)
-                }
-                .frame(width: 40)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(workout.type.isQuality ? workoutColor.opacity(0.2) : Color.clear)
-                )
+                // Status indicator
+                Circle()
+                    .fill(isSkipped ? Color.gray : (workout.isCompleted ? Color.green : workoutColor))
+                    .frame(width: 10, height: 10)
+                    .padding(.leading, 8)
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
@@ -377,26 +376,14 @@ struct WorkoutCard: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    HStack(spacing: 12) {
-                        if let pace = calculatedPace {
-                            HStack(spacing: 4) {
-                                Image(systemName: "speedometer")
-                                    .font(.caption)
-                                Text("\(pace) /mi")
-                                    .font(.caption)
-                            }
-                            .foregroundStyle(workoutColor)
+                    if let pace = calculatedPace {
+                        HStack(spacing: 4) {
+                            Image(systemName: "speedometer")
+                                .font(.caption)
+                            Text("\(pace) /mi")
+                                .font(.caption)
                         }
-
-                        if workout.date > Date() {
-                            HStack(spacing: 4) {
-                                Image(systemName: "calendar")
-                                    .font(.caption)
-                                Text(workout.date.formatted(date: .abbreviated, time: .omitted))
-                                    .font(.caption)
-                            }
-                            .foregroundStyle(.secondary)
-                        }
+                        .foregroundStyle(workoutColor)
                     }
                 }
             }

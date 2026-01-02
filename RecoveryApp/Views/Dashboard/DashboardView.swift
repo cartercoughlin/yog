@@ -11,8 +11,23 @@ struct DashboardView: View {
     @EnvironmentObject var injuryViewModel: InjuryTrackerViewModel
     @EnvironmentObject var themeManager: ThemeManager
     @StateObject private var viewModel = DashboardViewModel()
+    @StateObject private var trainingPlanViewModel = TrainingPlanViewModel()
     @State private var showAlgorithmBreakdown = false
     @State private var showSettings = false
+
+    private var todaysWorkout: DailyWorkout? {
+        guard let currentPlan = trainingPlanViewModel.currentPlan else { return nil }
+        let today = Date()
+
+        for week in currentPlan.weeks {
+            for workout in week.workouts {
+                if Calendar.current.isDate(workout.date, inSameDayAs: today) {
+                    return workout
+                }
+            }
+        }
+        return nil
+    }
 
     var body: some View {
         NavigationStack {
@@ -55,6 +70,15 @@ struct DashboardView: View {
                                     .foregroundStyle(themeManager.currentTheme.primaryTextColor)
                             }
                             .padding(.horizontal)
+
+                            // Today's Workout Card (if there's a training plan)
+                            if let workout = todaysWorkout {
+                                TodaysWorkoutCard(
+                                    workout: workout,
+                                    recoveryScore: recovery.overallScore
+                                )
+                                .environmentObject(themeManager)
+                            }
 
                             // Most Recent Workout Card
                             if let recentWorkout = viewModel.mostRecentWorkout {
@@ -394,6 +418,82 @@ struct EmptyStateView: View {
                 .padding(.horizontal)
         }
         .padding(.top, 100)
+    }
+}
+
+struct TodaysWorkoutCard: View {
+    let workout: DailyWorkout
+    let recoveryScore: Double
+    @EnvironmentObject var themeManager: ThemeManager
+
+    private var recoveryBlurb: String? {
+        if recoveryScore < 50 {
+            return "⚠️ Your recovery is low. Remember, all runs are effort-based - listen to your body and scale back intensity if needed."
+        } else if recoveryScore < 65 {
+            return "💛 Your recovery is moderate. Focus on perceived effort rather than pace today."
+        } else if recoveryScore >= 80 {
+            return "💚 Your recovery is excellent! You're ready for today's workout."
+        }
+        return nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "figure.run")
+                    .foregroundStyle(.blue)
+                    .font(.title2)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Today's Workout")
+                        .font(.headline)
+                    Text(workout.type.rawValue)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if let distance = workout.distanceInMiles {
+                    VStack(alignment: .trailing) {
+                        Text(String(format: "%.0f mi", distance))
+                            .font(.title3)
+                            .fontWeight(.bold)
+                        if let pace = workout.paceMinPerMile {
+                            Text("\(pace)/mi")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else if workout.type == .rest {
+                    Text("Rest")
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Divider()
+
+            Text(workout.description)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+
+            if let blurb = recoveryBlurb {
+                Divider()
+
+                Text(blurb)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .italic()
+            }
+        }
+        .padding()
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.3), lineWidth: 2)
+        )
+        .padding(.horizontal)
     }
 }
 

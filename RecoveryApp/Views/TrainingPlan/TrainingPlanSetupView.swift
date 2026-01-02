@@ -27,6 +27,9 @@ struct TrainingPlanSetupView: View {
                             Text(distance.rawValue).tag(distance)
                         }
                     }
+                    .onChange(of: viewModel.selectedDistance) { _, _ in
+                        viewModel.updateDesiredMileageDefaults()
+                    }
 
                     DatePicker(
                         "Race Date",
@@ -84,6 +87,51 @@ struct TrainingPlanSetupView: View {
 
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
+                        Text("Minimum: \(Int(viewModel.currentMinWeeklyMileage)) miles/week")
+                            .font(.subheadline)
+
+                        Slider(
+                            value: $viewModel.currentMinWeeklyMileage,
+                            in: 10...80,
+                            step: 5
+                        )
+                        .onChange(of: viewModel.currentMinWeeklyMileage) { _, _ in
+                            viewModel.updateDesiredMileageDefaults()
+                        }
+
+                        Text("Maximum: \(Int(viewModel.currentMaxWeeklyMileage)) miles/week")
+                            .font(.subheadline)
+
+                        Slider(
+                            value: $viewModel.currentMaxWeeklyMileage,
+                            in: 15...85,
+                            step: 5
+                        )
+                        .onChange(of: viewModel.currentMaxWeeklyMileage) { _, _ in
+                            viewModel.updateDesiredMileageDefaults()
+                        }
+                    }
+                } header: {
+                    Text("Current Weekly Mileage Range")
+                } footer: {
+                    Text("What is your current typical weekly mileage range?")
+                }
+
+                Section {
+                    Picker("Days Per Week", selection: $viewModel.daysPerWeek) {
+                        ForEach(3...7, id: \.self) { days in
+                            Text("\(days) days").tag(days)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                } header: {
+                    Text("Running Frequency")
+                } footer: {
+                    Text("How many days per week do you want to run?")
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
                         Text("Minimum: \(Int(viewModel.minWeeklyMileage)) miles/week")
                             .font(.subheadline)
 
@@ -103,7 +151,7 @@ struct TrainingPlanSetupView: View {
                         )
                     }
                 } header: {
-                    Text("Weekly Mileage Range")
+                    Text("Target Weekly Mileage Range")
                 } footer: {
                     Text("Your plan will build from minimum to maximum mileage over the training period")
                 }
@@ -201,6 +249,7 @@ struct TrainingPlanSetupView: View {
         viewModel.selectedRaceDate = plan.raceDate
         viewModel.minWeeklyMileage = plan.minWeeklyMileage
         viewModel.maxWeeklyMileage = plan.maxWeeklyMileage
+        viewModel.daysPerWeek = plan.daysPerWeek
         viewModel.allowRecoveryAdjustments = plan.allowRecoveryAdjustments
 
         // Convert goal time back to hours/minutes/seconds

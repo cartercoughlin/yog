@@ -247,6 +247,7 @@ struct TrainingPlan: Identifiable, Codable {
     let goalTimeInSeconds: TimeInterval  // Goal finish time
     let minWeeklyMileage: Double
     let maxWeeklyMileage: Double
+    let daysPerWeek: Int
     let weeks: [WeeklyPlan]
     let vdot: Double  // VDOT value for pace calculations
     let allowRecoveryAdjustments: Bool
@@ -260,6 +261,7 @@ struct TrainingPlan: Identifiable, Codable {
         goalTimeInSeconds: TimeInterval,
         minWeeklyMileage: Double,
         maxWeeklyMileage: Double,
+        daysPerWeek: Int = 6,
         weeks: [WeeklyPlan],
         vdot: Double,
         allowRecoveryAdjustments: Bool = true,
@@ -272,6 +274,7 @@ struct TrainingPlan: Identifiable, Codable {
         self.goalTimeInSeconds = goalTimeInSeconds
         self.minWeeklyMileage = minWeeklyMileage
         self.maxWeeklyMileage = maxWeeklyMileage
+        self.daysPerWeek = daysPerWeek
         self.weeks = weeks
         self.vdot = vdot
         self.allowRecoveryAdjustments = allowRecoveryAdjustments

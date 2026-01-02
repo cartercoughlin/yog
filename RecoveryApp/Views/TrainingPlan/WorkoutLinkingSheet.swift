@@ -39,7 +39,7 @@ struct WorkoutLinkingSheet: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: workout.date > Date() ? "calendar.badge.clock" : "figure.run")
+            Image(systemName: workout.date > Date() ? "calendar.badge.clock" : intendedWorkoutType.icon)
                 .font(.system(size: 50))
                 .foregroundStyle(.secondary)
 
@@ -47,13 +47,13 @@ struct WorkoutLinkingSheet: View {
                 .font(.headline)
 
             if workout.date > Date() {
-                Text("This workout is scheduled for \(workout.date.formatted(date: .abbreviated, time: .omitted)). Complete the run to link it here.")
+                Text("This workout is scheduled for \(workout.date.formatted(date: .abbreviated, time: .omitted)). Complete the workout to link it here.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
             } else {
-                Text("No running workouts found around \(workout.date.formatted(date: .abbreviated, time: .omitted))")
+                Text("No \(intendedWorkoutType.rawValue.lowercased()) workouts found around \(workout.date.formatted(date: .abbreviated, time: .omitted))")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -91,6 +91,26 @@ struct WorkoutLinkingSheet: View {
                 Color.black.opacity(0.2)
                     .ignoresSafeArea()
             }
+        }
+    }
+
+    private var intendedWorkoutType: WorkoutType {
+        // Detect intended workout type from description
+        let desc = workout.description.lowercased()
+        if desc.contains("strength") {
+            return .strength
+        } else if desc.contains("yoga") {
+            return .yoga
+        } else if desc.contains("mobility") || desc.contains("flexibility") {
+            return .mobility
+        } else if desc.contains("cycling") || desc.contains("bike") {
+            return .cycling
+        } else if desc.contains("swimming") || desc.contains("swim") {
+            return .swimming
+        } else if desc.contains("walking") {
+            return .walking
+        } else {
+            return .running
         }
     }
 
@@ -133,13 +153,14 @@ struct WorkoutLinkingSheet: View {
             // Fetch health metrics for this date range
             let metrics = try await healthKitManager.fetchMetricsForDateRange(startDate: startDate, endDate: endDate)
 
-            // Extract running workouts only
-            let runningWorkouts = metrics.flatMap { $0.workouts }
-                .filter { $0.type == .running }
+            // Extract workouts matching the intended type
+            let targetType = intendedWorkoutType
+            let matchingWorkouts = metrics.flatMap { $0.workouts }
+                .filter { $0.type == targetType }
                 .sorted { abs($0.date.timeIntervalSince(workout.date)) < abs($1.date.timeIntervalSince(workout.date)) }
 
-            availableWorkouts = runningWorkouts
-            print("✅ Found \(runningWorkouts.count) running workouts")
+            availableWorkouts = matchingWorkouts
+            print("✅ Found \(matchingWorkouts.count) \(targetType.rawValue) workouts")
         } catch {
             print("❌ Error loading workouts: \(error)")
         }
@@ -171,15 +192,23 @@ struct WorkoutLinkRow: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(workout.date.formatted(date: .abbreviated, time: .shortened))
-                    .font(.headline)
+                HStack(spacing: 6) {
+                    Image(systemName: workout.type.icon)
+                        .font(.caption)
+                        .foregroundStyle(workoutColor)
+                    Text(workout.date.formatted(date: .abbreviated, time: .shortened))
+                        .font(.headline)
+                }
 
                 HStack(spacing: 16) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "figure.run")
-                            .font(.caption)
-                        Text(String(format: "%.2f mi", workout.distance! / 1609.34))
-                            .font(.caption)
+                    // Show distance for cardio workouts
+                    if let distance = workout.distance, distance > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "location.fill")
+                                .font(.caption)
+                            Text(String(format: "%.2f mi", distance / 1609.34))
+                                .font(.caption)
+                        }
                     }
 
                     HStack(spacing: 4) {
@@ -189,11 +218,14 @@ struct WorkoutLinkRow: View {
                             .font(.caption)
                     }
 
-                    HStack(spacing: 4) {
-                        Image(systemName: "speedometer")
-                            .font(.caption)
-                        Text(formatPace(distance: workout.distance!, duration: workout.duration))
-                            .font(.caption)
+                    // Show pace only for distance-based workouts
+                    if let distance = workout.distance, distance > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "speedometer")
+                                .font(.caption)
+                            Text(formatPace(distance: distance, duration: workout.duration))
+                                .font(.caption)
+                        }
                     }
                 }
                 .foregroundStyle(.secondary)
@@ -212,6 +244,20 @@ struct WorkoutLinkRow: View {
         }
         .padding(.vertical, 8)
         .opacity(isLinking ? 0.6 : 1.0)
+    }
+
+    private var workoutColor: Color {
+        switch workout.type {
+        case .running: return .blue
+        case .cycling: return .green
+        case .swimming: return .cyan
+        case .walking: return .orange
+        case .strength: return .red
+        case .yoga: return .purple
+        case .mobility: return .pink
+        case .rest: return .gray
+        case .other: return .indigo
+        }
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {

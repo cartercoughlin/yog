@@ -942,6 +942,67 @@ class TrainingPlanViewModel: ObservableObject {
         }
     }
 
+    func addCustomWorkout(toWeekNumber weekNumber: Int, workoutType: WorkoutType, description: String, date: Date, distanceInMiles: Double? = nil, durationInMinutes: Int? = nil) {
+        guard var plan = currentPlan else { return }
+
+        var updatedWeeks = plan.weeks
+        guard let weekIndex = updatedWeeks.firstIndex(where: { $0.weekNumber == weekNumber }) else { return }
+
+        let week = updatedWeeks[weekIndex]
+
+        // Create a new workout based on the type
+        let trainingType: TrainingWorkoutType
+        switch workoutType {
+        case .strength:
+            trainingType = .easy  // Use easy as placeholder for strength
+        case .yoga, .mobility:
+            trainingType = .easy  // Use easy as placeholder for yoga/mobility
+        default:
+            trainingType = .easy
+        }
+
+        let newWorkout = DailyWorkout(
+            date: date,
+            type: trainingType,
+            distanceInMiles: distanceInMiles,
+            durationInMinutes: durationInMinutes,
+            paceMinPerMile: nil,
+            description: description
+        )
+
+        var updatedWorkouts = week.workouts
+        updatedWorkouts.append(newWorkout)
+        updatedWorkouts.sort { $0.date < $1.date }
+
+        updatedWeeks[weekIndex] = WeeklyPlan(
+            id: week.id,
+            weekNumber: week.weekNumber,
+            phase: week.phase,
+            workouts: updatedWorkouts,
+            startDate: week.startDate,
+            isStepbackWeek: week.isStepbackWeek
+        )
+
+        let updatedPlan = TrainingPlan(
+            id: plan.id,
+            name: plan.name,
+            raceDistance: plan.raceDistance,
+            raceDate: plan.raceDate,
+            goalTimeInSeconds: plan.goalTimeInSeconds,
+            minWeeklyMileage: plan.minWeeklyMileage,
+            maxWeeklyMileage: plan.maxWeeklyMileage,
+            weeks: updatedWeeks,
+            vdot: plan.vdot,
+            allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
+            createdDate: plan.createdDate
+        )
+
+        currentPlan = updatedPlan
+        if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
+            trainingPlans[planIndex] = updatedPlan
+        }
+    }
+
     // MARK: - Workout Day Editing
 
     func moveWorkout(from workoutId: UUID, toDay newDate: Date) {

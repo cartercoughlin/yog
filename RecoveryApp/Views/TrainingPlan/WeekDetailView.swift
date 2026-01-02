@@ -226,6 +226,25 @@ struct WorkoutCard: View {
         workout.description.contains("(Skipped)")
     }
 
+    private var isCustomWorkout: Bool {
+        // Detect if this is a custom workout by checking the description
+        let desc = workout.description.lowercased()
+        return desc.contains("strength") || desc.contains("yoga") || desc.contains("mobility") ||
+               desc.contains("cycling") || desc.contains("swimming") || desc.contains("walking")
+    }
+
+    private var displayTitle: String {
+        // For custom workouts, extract the type from description
+        if isCustomWorkout {
+            // Remove " Workout" suffix and "(Skipped)" if present
+            let cleanDesc = workout.description
+                .replacingOccurrences(of: " Workout", with: "")
+                .replacingOccurrences(of: " (Skipped)", with: "")
+            return cleanDesc
+        }
+        return workout.type.rawValue
+    }
+
     // Calculate pace dynamically based on current pace calculation logic
     private var calculatedPace: String? {
         guard workout.type != .rest else { return nil }
@@ -271,7 +290,7 @@ struct WorkoutCard: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text(workout.type.rawValue)
+                        Text(displayTitle)
                             .font(.headline)
 
                         if workout.type.isQuality {
@@ -295,9 +314,12 @@ struct WorkoutCard: View {
                         }
                     }
 
-                    Text(workout.description)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    // Only show description for non-custom workouts
+                    if !isCustomWorkout {
+                        Text(workout.description)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
 
                     HStack(spacing: 12) {
                         if let pace = calculatedPace {
@@ -473,6 +495,14 @@ struct WorkoutCard: View {
                     viewModel.unskipWorkout(workoutId: workout.id)
                 } label: {
                     Label("Unskip Workout", systemImage: "arrow.uturn.backward")
+                }
+            }
+
+            if isCustomWorkout {
+                Button(role: .destructive) {
+                    viewModel.deleteWorkout(workoutId: workout.id)
+                } label: {
+                    Label("Delete Workout", systemImage: "trash")
                 }
             }
         }

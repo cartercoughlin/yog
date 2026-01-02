@@ -97,21 +97,31 @@ struct WorkoutLinkingSheet: View {
     private var intendedWorkoutType: WorkoutType {
         // Detect intended workout type from description
         let desc = workout.description.lowercased()
-        if desc.contains("strength") {
+
+        // Check for specific workout type keywords
+        if desc.contains("strength") || desc.contains("weight") || desc.contains("gym") {
             return .strength
         } else if desc.contains("yoga") {
             return .yoga
-        } else if desc.contains("mobility") || desc.contains("flexibility") {
+        } else if desc.contains("mobility") || desc.contains("flexibility") || desc.contains("stretch") {
             return .mobility
-        } else if desc.contains("cycling") || desc.contains("bike") {
+        } else if desc.contains("cycling") || desc.contains("bike") || desc.contains("ride") {
             return .cycling
-        } else if desc.contains("swimming") || desc.contains("swim") {
+        } else if desc.contains("swimming") || desc.contains("swim") || desc.contains("pool") {
             return .swimming
-        } else if desc.contains("walking") {
+        } else if desc.contains("walking") || desc.contains("walk") {
             return .walking
-        } else {
-            return .running
         }
+
+        // If no distance but has duration, likely a time-based workout (not running)
+        // This helps catch custom workouts where the description was edited
+        if workout.distanceInMiles == nil && workout.durationInMinutes != nil {
+            // Default to strength for time-based workouts without distance
+            return .strength
+        }
+
+        // Default to running for everything else
+        return .running
     }
 
     private func loadWorkouts() async {

@@ -4,6 +4,7 @@ struct WeekDetailView: View {
     let week: WeeklyPlan
     let plan: TrainingPlan
     @ObservedObject var viewModel: TrainingPlanViewModel
+    @State private var showAddWorkout = false
 
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -170,13 +171,27 @@ struct WeekDetailView: View {
 
     private var dailyWorkoutsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Daily Workouts")
-                .font(.headline)
+            HStack {
+                Text("Daily Workouts")
+                    .font(.headline)
+
+                Spacer()
+
+                Button {
+                    showAddWorkout = true
+                } label: {
+                    Label("Add Workout", systemImage: "plus.circle.fill")
+                        .font(.subheadline)
+                }
+            }
 
             ForEach(week.workouts) { workout in
                 WorkoutCard(workout: workout, plan: plan)
                     .environmentObject(viewModel)
             }
+        }
+        .sheet(isPresented: $showAddWorkout) {
+            AddCustomWorkoutSheet(week: week, viewModel: viewModel)
         }
     }
 
@@ -309,22 +324,25 @@ struct WorkoutCard: View {
                 Divider()
 
                 HStack(spacing: 16) {
-                    VStack(spacing: 2) {
-                        Text(linked.formattedDistance)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                        Text("Distance")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
+                    // Only show distance for distance-based workouts
+                    if linked.actualDistance > 0 {
+                        VStack(spacing: 2) {
+                            Text(linked.formattedDistance)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                            Text("Distance")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
 
-                    VStack(spacing: 2) {
-                        Text("\(linked.actualPace)")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                        Text("Pace /mi")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        VStack(spacing: 2) {
+                            Text("\(linked.actualPace)")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                            Text("Pace /mi")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     VStack(spacing: 2) {
@@ -332,6 +350,15 @@ struct WorkoutCard: View {
                             .font(.subheadline)
                             .fontWeight(.semibold)
                         Text("Duration")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    VStack(spacing: 2) {
+                        Text(linked.completedDate.formatted(date: .abbreviated, time: .omitted))
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Text("Completed")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -562,6 +589,153 @@ struct ManualMileageEntrySheet: View {
             distance: dist,
             duration: totalSeconds,
             date: workout.date
+        )
+
+        dismiss()
+    }
+}
+
+struct AddCustomWorkoutSheet: View {
+    let week: WeeklyPlan
+    @ObservedObject var viewModel: TrainingPlanViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var selectedType: WorkoutType = .strength
+    @State private var description: String = ""
+    @State private var selectedDate: Date = Date()
+    @State private var distance: String = ""
+    @State private var hours: Int = 0
+    @State private var minutes: Int = 45
+    @State private var seconds: Int = 0
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Workout Type") {
+                    Picker("Type", selection: $selectedType) {
+                        ForEach([WorkoutType.strength, .yoga, .mobility, .cycling, .swimming, .walking], id: \.self) { type in
+                            Label {
+                                Text(type.rawValue)
+                            } icon: {
+                                Image(systemName: type.icon)
+                            }
+                            .tag(type)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                Section("Details") {
+                    DatePicker("Date", selection: $selectedDate, in: week.startDate...week.endDate, displayedComponents: .date)
+
+                    TextField("Description", text: $description)
+                        .textInputAutocapitalization(.sentences)
+                }
+
+                Section("Duration") {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 16) {
+                            VStack {
+                                Text("Hours")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Picker("Hours", selection: $hours) {
+                                    ForEach(0..<10) { hour in
+                                        Text("\(hour)").tag(hour)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .frame(width: 80)
+                            }
+
+                            VStack {
+                                Text("Minutes")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Picker("Minutes", selection: $minutes) {
+                                    ForEach(0..<60) { minute in
+                                        Text("\(minute)").tag(minute)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .frame(width: 80)
+                            }
+
+                            VStack {
+                                Text("Seconds")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Picker("Seconds", selection: $seconds) {
+                                    ForEach(0..<60) { second in
+                                        Text("\(second)").tag(second)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .frame(width: 80)
+                            }
+                        }
+                    }
+                }
+
+                if selectedType == .running || selectedType == .cycling || selectedType == .walking {
+                    Section("Distance (Optional)") {
+                        HStack {
+                            TextField("0.0", text: $distance)
+                                .keyboardType(.decimalPad)
+                            Text("miles")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Add Workout")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        addWorkout()
+                    }
+                    .disabled(!isValidEntry)
+                }
+            }
+            .onAppear {
+                // Set default date to first day of the week
+                selectedDate = week.startDate
+                // Set default description based on type
+                updateDefaultDescription()
+            }
+            .onChange(of: selectedType) { _ in
+                updateDefaultDescription()
+            }
+        }
+    }
+
+    private var isValidEntry: Bool {
+        return hours > 0 || minutes > 0 || seconds > 0
+    }
+
+    private func updateDefaultDescription() {
+        let typeText = selectedType.rawValue
+        description = "\(typeText) Workout"
+    }
+
+    private func addWorkout() {
+        let totalSeconds = hours * 3600 + minutes * 60 + seconds
+        let dist = Double(distance)
+
+        viewModel.addCustomWorkout(
+            toWeekNumber: week.weekNumber,
+            workoutType: selectedType,
+            description: description,
+            date: selectedDate,
+            distanceInMiles: dist,
+            durationInMinutes: totalSeconds / 60
         )
 
         dismiss()

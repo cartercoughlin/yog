@@ -192,7 +192,7 @@ struct SinglePlanView: View {
     @State private var showSetup = false
     @State private var selectedWeekNumber: String?
     @State private var showWeekDetail = false
-    @State private var showSyncBanner = true
+    @State private var showSyncBanner = false
 
     var body: some View {
         Group {
@@ -278,38 +278,39 @@ struct SinglePlanView: View {
 
     private func planHeader(plan: TrainingPlan) -> some View {
         VStack(spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(plan.raceDistance.rawValue)
-                        .font(.title)
+                        .font(.title2)
                         .fontWeight(.bold)
 
                     Text(plan.raceDate, style: .date)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+
+                    HStack(spacing: 12) {
+                        Text("Goal: \(VDOTCalculator.formatTime(seconds: plan.goalTimeInSeconds))")
+                            .font(.caption)
+                            .foregroundStyle(.blue)
+
+                        Text(plan.goalPaceMinPerMile + " /mi")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 4)
                 }
 
                 Spacer()
 
-                VStack(alignment: .trailing, spacing: 8) {
+                VStack(alignment: .trailing, spacing: 4) {
                     Text("\(plan.weeksUntilRace)")
-                        .font(.system(size: 36, weight: .bold))
+                        .font(.system(size: 32, weight: .bold))
                         .foregroundStyle(.blue)
 
-                    Text("weeks to go")
+                    Text("weeks left")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-            }
-
-            Divider()
-
-            HStack {
-                statItem(title: "Goal Time", value: VDOTCalculator.formatTime(seconds: plan.goalTimeInSeconds))
-                Divider().frame(height: 40)
-                statItem(title: "Goal Pace", value: plan.goalPaceMinPerMile + "/mi")
-                Divider().frame(height: 40)
-                statItem(title: "VDOT", value: String(format: "%.0f", plan.vdot))
             }
         }
         .padding()
@@ -319,30 +320,18 @@ struct SinglePlanView: View {
         )
     }
 
-    private func statItem(title: String, value: String) -> some View {
-        VStack(spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
     private func syncReminderBanner() -> some View {
         HStack(spacing: 12) {
-            Image(systemName: "arrow.clockwise.circle.fill")
+            Image(systemName: "figure.run.circle.fill")
                 .font(.title2)
                 .foregroundStyle(.blue)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Link Your Workouts")
+                Text("Track Your Workouts")
                     .font(.subheadline)
                     .fontWeight(.semibold)
 
-                Text("Open Garmin Connect to sync, then link completed runs to your plan")
+                Text("Tap any workout card to link HealthKit data or enter manual mileage")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -460,20 +449,6 @@ struct SinglePlanView: View {
             .chartGesture { _ in
                 // Enable tap gesture for chart selection
             }
-
-            HStack(spacing: 16) {
-                ForEach(TrainingPhase.allCases, id: \.self) { phase in
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(colorForPhase(phase))
-                            .frame(width: 8, height: 8)
-                        Text(phase.rawValue)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .padding(.top, 8)
         }
         .padding()
         .overlay(

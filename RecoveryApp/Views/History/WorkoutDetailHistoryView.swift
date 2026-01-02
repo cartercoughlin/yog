@@ -24,9 +24,6 @@ struct WorkoutDetailHistoryView: View {
                 // Header
                 headerSection
 
-                // External App Links
-                externalLinksSection
-
                 // Metrics Grid
                 metricsSection
 
@@ -62,78 +59,6 @@ struct WorkoutDetailHistoryView: View {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color(.secondarySystemBackground))
             )
-            .padding(.horizontal)
-        }
-    }
-
-    private var externalLinksSection: some View {
-        VStack(spacing: 12) {
-            // Garmin Connect button
-            Button(action: {
-                openGarminConnect()
-            }) {
-                HStack {
-                    Image(systemName: "map.fill")
-                        .font(.title3)
-                        .foregroundStyle(.white)
-                        .frame(width: 40)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("View Route & Details")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-
-                        Text("Open in Garmin Connect")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.8))
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "arrow.up.right")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.6))
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.orange)
-                )
-            }
-            .padding(.horizontal)
-
-            // Strava button
-            Button(action: {
-                openStrava()
-            }) {
-                HStack {
-                    Image(systemName: "figure.run")
-                        .font(.title3)
-                        .foregroundStyle(.white)
-                        .frame(width: 40)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("View on Strava")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-
-                        Text("Open in Strava app")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.8))
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "arrow.up.right")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.6))
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(red: 0.98, green: 0.29, blue: 0.16))
-                )
-            }
             .padding(.horizontal)
         }
     }
@@ -247,34 +172,6 @@ struct WorkoutDetailHistoryView: View {
         let minutes = Int(pace) / 60
         let seconds = Int(pace) % 60
         return String(format: "%d:%02d", minutes, seconds)
-    }
-
-    private func openGarminConnect() {
-        // Try to open Garmin Connect app first using the correct URL scheme
-        if let url = URL(string: "com.garmin.connect.mobile://") {
-            UIApplication.shared.open(url, options: [:]) { success in
-                if !success {
-                    // If app not installed, open App Store
-                    if let appStoreURL = URL(string: "https://apps.apple.com/us/app/garmin-connect/id583446403") {
-                        UIApplication.shared.open(appStoreURL)
-                    }
-                }
-            }
-        }
-    }
-
-    private func openStrava() {
-        // Try to open Strava app first
-        if let url = URL(string: "strava://") {
-            UIApplication.shared.open(url, options: [:]) { success in
-                if !success {
-                    // If app not installed, open App Store
-                    if let appStoreURL = URL(string: "https://apps.apple.com/us/app/strava/id426826309") {
-                        UIApplication.shared.open(appStoreURL)
-                    }
-                }
-            }
-        }
     }
 }
 

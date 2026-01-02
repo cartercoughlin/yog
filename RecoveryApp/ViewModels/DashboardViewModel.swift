@@ -22,6 +22,13 @@ class DashboardViewModel: ObservableObject {
     private let recoveryCalculator = RecoveryCalculator()
     private let recommendationEngine = RecommendationEngine()
 
+    var mostRecentWorkout: WorkoutData? {
+        historicalMetrics
+            .flatMap { $0.workouts }
+            .sorted { $0.date > $1.date }
+            .first
+    }
+
     // Cache management
     private var lastLoadTime: Date?
     private var cacheExpirationInterval: TimeInterval = 300 // 5 minutes

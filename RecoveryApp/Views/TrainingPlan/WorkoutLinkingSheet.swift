@@ -47,7 +47,7 @@ struct WorkoutLinkingSheet: View {
                 .font(.headline)
 
             if workout.date > Date() {
-                Text("This workout is scheduled for \(workout.date.formatted(date: .abbreviated, time: .omitted)). Complete the run and sync your Garmin to link it here.")
+                Text("This workout is scheduled for \(workout.date.formatted(date: .abbreviated, time: .omitted)). Complete the run to link it here.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

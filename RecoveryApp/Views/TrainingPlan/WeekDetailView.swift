@@ -196,7 +196,7 @@ struct WorkoutCard: View {
     @State private var showLinkSheet = false
     @State private var showDatePicker = false
     @State private var showManualEntry = false
-    @State private var isExpanded = false
+    @State private var showActionSheet = false
     @State private var newDate: Date
     @EnvironmentObject private var viewModel: TrainingPlanViewModel
 
@@ -228,190 +228,127 @@ struct WorkoutCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Main card content - tappable to expand
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    isExpanded.toggle()
+        VStack(spacing: 12) {
+            // Main card content
+            HStack(spacing: 12) {
+                // Day indicator
+                VStack(spacing: 4) {
+                    Text(dayOfWeekFormatter.string(from: workout.date))
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(workout.type.isQuality ? .white : .secondary)
+
+                    Circle()
+                        .fill(workout.isCompleted ? Color.green : workoutColor)
+                        .frame(width: 8, height: 8)
                 }
-            } label: {
-                HStack(spacing: 12) {
-                    // Day indicator
-                    VStack(spacing: 4) {
-                        Text(dayOfWeekFormatter.string(from: workout.date))
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(workout.type.isQuality ? .white : .secondary)
+                .frame(width: 50)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(workout.type.isQuality ? workoutColor.opacity(0.2) : Color.clear)
+                )
 
-                        Circle()
-                            .fill(workout.isCompleted ? Color.green : workoutColor)
-                            .frame(width: 8, height: 8)
-                    }
-                    .frame(width: 50)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(workout.type.isQuality ? workoutColor.opacity(0.2) : Color.clear)
-                    )
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(workout.type.rawValue)
+                            .font(.headline)
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text(workout.type.rawValue)
-                                .font(.headline)
-
-                            if workout.type.isQuality {
-                                Image(systemName: "star.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.yellow)
-                            }
-
-                            if workout.isCompleted {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.green)
-                            }
-
-                            Spacer()
-
-                            // Expand/collapse indicator
-                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        if workout.type.isQuality {
+                            Image(systemName: "star.fill")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            if let distance = workout.distanceInMiles {
-                                Text(String(format: "%.0f mi", distance))
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                            }
+                                .foregroundStyle(.yellow)
                         }
 
-                        Text(workout.description)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(isExpanded ? nil : 2)
+                        if workout.isCompleted {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
 
+                        Spacer()
+
+                        if let distance = workout.distanceInMiles {
+                            Text(String(format: "%.0f mi", distance))
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                        }
+                    }
+
+                    Text(workout.description)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    HStack(spacing: 12) {
                         if let pace = calculatedPace {
                             HStack(spacing: 4) {
                                 Image(systemName: "speedometer")
                                     .font(.caption)
-                                Text("\(pace) / mile")
+                                Text("\(pace) /mi")
                                     .font(.caption)
                             }
                             .foregroundStyle(workoutColor)
                         }
+
+                        if workout.date > Date() {
+                            HStack(spacing: 4) {
+                                Image(systemName: "calendar")
+                                    .font(.caption)
+                                Text(workout.date.formatted(date: .abbreviated, time: .omitted))
+                                    .font(.caption)
+                            }
+                            .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
-            .buttonStyle(PlainButtonStyle())
 
-            // Expanded content
-            if isExpanded {
-                VStack(spacing: 12) {
-                    Divider()
-                        .padding(.vertical, 4)
+            // Linked workout display
+            if let linked = workout.linkedWorkout {
+                Divider()
 
-                    // Linked workout display
-                    if let linked = workout.linkedWorkout {
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Completed Workout")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.green)
-
-                                HStack(spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Distance")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                        Text(linked.formattedDistance)
-                                            .font(.caption)
-                                            .fontWeight(.semibold)
-                                    }
-
-                                    Divider().frame(height: 20)
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Pace")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                        Text("\(linked.actualPace) / mi")
-                                            .font(.caption)
-                                            .fontWeight(.semibold)
-                                    }
-
-                                    Divider().frame(height: 20)
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Duration")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                        Text(linked.formattedDuration)
-                                            .font(.caption)
-                                            .fontWeight(.semibold)
-                                    }
-                                }
-                            }
-
-                            Spacer()
-                        }
-                        .padding(.horizontal)
+                HStack(spacing: 16) {
+                    VStack(spacing: 2) {
+                        Text(linked.formattedDistance)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Text("Distance")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
 
-                    // Action buttons for past/present workouts
-                    if workout.date <= Date() && !workout.isCompleted {
-                        VStack(spacing: 8) {
-                            Button {
-                                showLinkSheet = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: "link")
-                                    Text("Link HealthKit Workout")
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                            }
-                            .buttonStyle(.bordered)
+                    VStack(spacing: 2) {
+                        Text("\(linked.actualPace)")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Text("Pace /mi")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
 
-                            Button {
-                                showManualEntry = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: "pencil")
-                                    Text("Enter Manual Mileage")
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                            }
-                            .buttonStyle(.bordered)
-
-                            Button {
-                                viewModel.skipWorkout(workoutId: workout.id)
-                            } label: {
-                                HStack {
-                                    Image(systemName: "forward.fill")
-                                    Text("Skip This Workout")
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                            }
-                            .buttonStyle(.bordered)
-                            .foregroundStyle(.orange)
-                        }
-                        .padding(.horizontal)
-                        .padding(.bottom, 8)
-                    } else if workout.date > Date() {
-                        // Future workout indicator
-                        HStack {
-                            Image(systemName: "calendar")
-                                .font(.caption)
-                            Text("Scheduled for \(workout.date.formatted(date: .abbreviated, time: .omitted))")
-                                .font(.caption)
-                        }
-                        .foregroundStyle(.secondary)
-                        .padding(.vertical, 8)
+                    VStack(spacing: 2) {
+                        Text(linked.formattedDuration)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Text("Duration")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                 }
+                .foregroundStyle(.green)
+            }
+
+            // Action button for incomplete workouts
+            if workout.date <= Date() && !workout.isCompleted {
+                Button {
+                    showActionSheet = true
+                } label: {
+                    Text("Log Workout")
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.bordered)
             }
         }
         .padding()
@@ -427,6 +364,18 @@ struct WorkoutCard: View {
                     lineWidth: 1
                 )
         )
+        .confirmationDialog("Log Workout", isPresented: $showActionSheet) {
+            Button("Link HealthKit Workout") {
+                showLinkSheet = true
+            }
+            Button("Enter Manual Mileage") {
+                showManualEntry = true
+            }
+            Button("Skip This Workout") {
+                viewModel.skipWorkout(workoutId: workout.id)
+            }
+            Button("Cancel", role: .cancel) {}
+        }
         .sheet(isPresented: $showLinkSheet) {
             WorkoutLinkingSheet(workout: workout)
                 .environmentObject(viewModel)

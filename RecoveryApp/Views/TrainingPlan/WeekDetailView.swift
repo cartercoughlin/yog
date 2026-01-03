@@ -211,23 +211,48 @@ struct WeekDetailView: View {
 
             List {
                 ForEach(week.workouts) { workout in
-                    WorkoutCard(workout: workout, plan: plan, isEditMode: editMode == .active)
-                        .environmentObject(viewModel)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 12, trailing: editMode == .active ? 8 : 0))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                    Section {
+                        WorkoutCard(workout: workout, plan: plan, isEditMode: editMode == .active)
+                            .environmentObject(viewModel)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 12, trailing: editMode == .active ? 8 : 0))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    } header: {
+                        HStack {
+                            Text(workout.date, formatter: weekDayOfWeekFormatter)
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Text(workout.date, formatter: weekDateNumberFormatter)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .textCase(nil)
+                        .padding(.top, 8)
+                    }
                 }
                 .onMove { indices, newOffset in
                     moveWorkout(from: indices, to: newOffset)
                 }
             }
             .listStyle(.plain)
-            .frame(height: CGFloat(week.workouts.count) * 170)
+            .frame(height: CGFloat(week.workouts.count) * 200)
             .scrollDisabled(true)
         }
         .sheet(isPresented: $showAddWorkout) {
             AddCustomWorkoutSheet(week: week, viewModel: viewModel)
         }
+    }
+
+    private var weekDayOfWeekFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        return formatter
+    }
+
+    private var weekDateNumberFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter
     }
 
     private func moveWorkout(from source: IndexSet, to destination: Int) {

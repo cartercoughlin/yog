@@ -23,8 +23,7 @@ class TrainingPlanViewModel: ObservableObject {
     @Published var goalHours = 3
     @Published var goalMinutes = 30
     @Published var goalSeconds = 0
-    @Published var currentMinWeeklyMileage: Double = 30
-    @Published var currentMaxWeeklyMileage: Double = 40
+    @Published var currentWeeklyMileage: Double = 30
     @Published var minWeeklyMileage: Double = 40
     @Published var maxWeeklyMileage: Double = 55
     @Published var daysPerWeek: Int = 6
@@ -46,22 +45,22 @@ class TrainingPlanViewModel: ObservableObject {
 
     func updateDesiredMileageDefaults() {
         // Calculate recommended mileage increase based on race distance
-        let mileageIncrease: (min: Double, max: Double)
+        let mileageIncrease: Double
 
         switch selectedDistance {
         case .fiveK:
-            mileageIncrease = (5, 10)  // Modest increase for 5K
+            mileageIncrease = 10  // Modest increase for 5K
         case .tenK:
-            mileageIncrease = (5, 10)  // Moderate increase for 10K
+            mileageIncrease = 10  // Moderate increase for 10K
         case .halfMarathon:
-            mileageIncrease = (10, 15)  // Significant increase for half marathon
+            mileageIncrease = 15  // Significant increase for half marathon
         case .marathon:
-            mileageIncrease = (15, 20)  // Large increase for marathon
+            mileageIncrease = 20  // Large increase for marathon
         }
 
         // Set desired mileage as current + race-specific increase
-        minWeeklyMileage = min(80, currentMinWeeklyMileage + mileageIncrease.min)
-        maxWeeklyMileage = min(100, currentMaxWeeklyMileage + mileageIncrease.max)
+        minWeeklyMileage = currentWeeklyMileage
+        maxWeeklyMileage = min(100, currentWeeklyMileage + mileageIncrease)
 
         // Ensure max is always greater than min
         if maxWeeklyMileage <= minWeeklyMileage {
@@ -83,6 +82,18 @@ class TrainingPlanViewModel: ObservableObject {
         // Calculate goal marathon pace (seconds per mile)
         let marathonMiles = selectedDistance.meters / 1609.34
         let goalMarathonPaceSecPerMile = goalTime / marathonMiles
+
+        // If editing, preserve linked workouts by creating a map of date -> workout
+        var existingWorkoutsByDate: [Date: DailyWorkout] = [:]
+        if let existingPlan = currentPlan {
+            for week in existingPlan.weeks {
+                for workout in week.workouts {
+                    let calendar = Calendar.current
+                    let dateKey = calendar.startOfDay(for: workout.date)
+                    existingWorkoutsByDate[dateKey] = workout
+                }
+            }
+        }
 
         // Always create a 16-week plan regardless of race date
         let actualWeeks = 16
@@ -109,7 +120,7 @@ class TrainingPlanViewModel: ObservableObject {
                 phase: phase
             )
 
-            let workouts = generateWeeklyWorkouts(
+            var workouts = generateWeeklyWorkouts(
                 weekNumber: weekNumber + 1,
                 phase: phase,
                 targetMileage: mileage,
@@ -118,6 +129,32 @@ class TrainingPlanViewModel: ObservableObject {
                 weekStartDate: weekStartDate,
                 daysPerWeek: daysPerWeek
             )
+
+            // Preserve linked workouts from existing plan
+            if !existingWorkoutsByDate.isEmpty {
+                workouts = workouts.map { newWorkout in
+                    let calendar = Calendar.current
+                    let dateKey = calendar.startOfDay(for: newWorkout.date)
+
+                    // Try to find an existing workout on the same date
+                    if let existingWorkout = existingWorkoutsByDate[dateKey],
+                       existingWorkout.linkedWorkout != nil {
+                        // Preserve the linked workout data
+                        return DailyWorkout(
+                            id: newWorkout.id,
+                            date: newWorkout.date,
+                            type: newWorkout.type,
+                            distanceInMiles: newWorkout.distanceInMiles,
+                            durationInMinutes: newWorkout.durationInMinutes,
+                            paceMinPerMile: newWorkout.paceMinPerMile,
+                            description: newWorkout.description,
+                            isCompleted: existingWorkout.isCompleted,
+                            linkedWorkout: existingWorkout.linkedWorkout
+                        )
+                    }
+                    return newWorkout
+                }
+            }
 
             let isStepback = isStepbackWeek(weekNumber: weekNumber + 1, totalWeeks: actualWeeks)
 
@@ -217,10 +254,11 @@ class TrainingPlanViewModel: ObservableObject {
         // Apply stepback reduction: gentler 15% reduction on stepback weeks
         // This creates recovery without huge drops
         if isStepbackWeek {
-            return baseMileage * 0.85
+            baseMileage = baseMileage * 0.85
         }
 
-        return baseMileage
+        // Ensure mileage never exceeds max goal mileage
+        return min(baseMileage, maxWeeklyMileage)
     }
 
     private func isStepbackWeek(weekNumber: Int, totalWeeks: Int) -> Bool {
@@ -730,7 +768,12 @@ class TrainingPlanViewModel: ObservableObject {
     }
 
     func resetPlan() {
-        currentPlan = nil
+        // Remove the current plan from the array
+        if let plan = currentPlan {
+            trainingPlans.removeAll { $0.id == plan.id }
+            // Set current plan to the first remaining plan, or nil if no plans left
+            currentPlan = trainingPlans.first
+        }
         adjustmentSuggestion = nil
         lastRecoveryScore = nil
     }

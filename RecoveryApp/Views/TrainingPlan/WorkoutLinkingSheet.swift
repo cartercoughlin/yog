@@ -39,36 +39,28 @@ struct WorkoutLinkingSheet: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: workout.date > Date() ? "calendar.badge.clock" : intendedWorkoutType.icon)
+            Image(systemName: intendedWorkoutType.icon)
                 .font(.system(size: 50))
                 .foregroundStyle(.secondary)
 
-            Text(workout.date > Date() ? "Future Workout" : "No Workouts Found")
+            Text("No Workouts Found")
                 .font(.headline)
 
-            if workout.date > Date() {
-                Text("This workout is scheduled for \(workout.date.formatted(date: .abbreviated, time: .omitted)). Complete the workout to link it here.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            } else {
-                Text("No \(intendedWorkoutType.rawValue.lowercased()) workouts found around \(workout.date.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+            Text("No \(intendedWorkoutType.rawValue.lowercased()) workouts found around \(workout.date.formatted(date: .abbreviated, time: .omitted))")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
 
-                Button {
-                    Task {
-                        await loadWorkouts()
-                    }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+            Button {
+                Task {
+                    await loadWorkouts()
                 }
-                .buttonStyle(.bordered)
-                .padding(.top)
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
             }
+            .buttonStyle(.bordered)
+            .padding(.top)
         }
         .padding()
     }
@@ -128,31 +120,20 @@ struct WorkoutLinkingSheet: View {
         isLoading = true
 
         do {
-            // Don't fetch data for future dates
-            let now = Date()
-            if workout.date > now {
-                print("⏭️ Workout date is in the future, no data to fetch yet")
-                availableWorkouts = []
-                isLoading = false
-                return
-            }
-
             // Fetch workouts from ±3 days around the scheduled date
             let calendar = Calendar.current
-            var startDate = calendar.date(byAdding: .day, value: -3, to: workout.date) ?? workout.date
-            let endDate = min(
-                calendar.date(byAdding: .day, value: 3, to: workout.date) ?? workout.date,
-                now  // Don't fetch future dates
-            )
+            let now = Date()
+            let startDate = calendar.date(byAdding: .day, value: -3, to: workout.date) ?? workout.date
+            var endDate = calendar.date(byAdding: .day, value: 3, to: workout.date) ?? workout.date
 
-            // Ensure start date is not in the future
-            if startDate > now {
-                startDate = now
+            // Don't fetch beyond current date
+            if endDate > now {
+                endDate = now
             }
 
-            // Skip if the entire range is in the future
-            if startDate > endDate {
-                print("⏭️ Date range is in the future")
+            // If the entire date range is in the future, show empty state
+            if startDate > now {
+                print("⏭️ Date range is in the future, no workouts available yet")
                 availableWorkouts = []
                 isLoading = false
                 return

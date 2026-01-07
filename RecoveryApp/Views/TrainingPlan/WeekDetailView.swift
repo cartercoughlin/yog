@@ -8,6 +8,11 @@ struct WeekDetailView: View {
     @State private var editMode: EditMode = .inactive
     @State private var pendingMoves: [UUID: Date] = [:]
 
+    // HealthKit workout state
+    @State private var healthKitWorkouts: [WorkoutData] = []
+    @State private var isLoadingWorkouts = false
+    private let healthKitManager = HealthKitManager()
+
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE, MMM d"
@@ -26,11 +31,19 @@ struct WeekDetailView: View {
                 // Week Header
                 weekHeader
 
+                // Running Metrics Summary (from HealthKit)
+                if !healthKitWorkouts.isEmpty || isLoadingWorkouts {
+                    runningMetricsSummary
+                }
+
                 // Training Paces Reference
                 trainingPacesCard
 
-                // Daily Workouts
+                // Planned Quality Workouts
                 dailyWorkoutsSection
+
+                // HealthKit Workouts Section
+                healthKitWorkoutsSection
             }
             .padding()
         }
@@ -56,6 +69,56 @@ struct WeekDetailView: View {
             }
         }
         .environment(\.editMode, $editMode)
+        .task {
+            await loadHealthKitWorkouts()
+        }
+    }
+
+    // MARK: - HealthKit Data Loading
+
+    private func loadHealthKitWorkouts() async {
+        isLoadingWorkouts = true
+
+        do {
+            // Fetch workouts for the entire week's date range
+            let metrics = try await healthKitManager.fetchMetricsForDateRange(
+                startDate: week.startDate,
+                endDate: week.endDate
+            )
+
+            // Extract all workouts from all days and flatten
+            let allWorkouts = metrics.flatMap { $0.workouts }
+
+            // Sort by date
+            healthKitWorkouts = allWorkouts.sorted { $0.date < $1.date }
+        } catch {
+            print("Error loading HealthKit workouts: \(error)")
+            healthKitWorkouts = []
+        }
+
+        isLoadingWorkouts = false
+    }
+
+    // MARK: - Running Metrics Computed Properties
+
+    private var runningWorkouts: [WorkoutData] {
+        healthKitWorkouts.filter { $0.type == .running }
+    }
+
+    private var totalRunningDistance: Double {
+        runningWorkouts.compactMap { $0.distance }.reduce(0, +) / 1609.34 // Convert to miles
+    }
+
+    private var totalRunningDuration: TimeInterval {
+        runningWorkouts.reduce(0) { $0 + $1.duration }
+    }
+
+    private var averageRunningPace: String {
+        guard totalRunningDistance > 0 else { return "--:--" }
+        let paceSecPerMile = totalRunningDuration / totalRunningDistance
+        let paceMin = Int(paceSecPerMile / 60)
+        let paceSec = Int(paceSecPerMile.truncatingRemainder(dividingBy: 60))
+        return String(format: "%d:%02d", paceMin, paceSec)
     }
 
     private var weekHeader: some View {
@@ -85,7 +148,7 @@ struct WeekDetailView: View {
                     Text(String(format: "%.0f", week.totalMileage))
                         .font(.system(size: 36, weight: .bold))
 
-                    Text("total miles")
+                    Text("recommended miles")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -96,9 +159,9 @@ struct WeekDetailView: View {
             HStack {
                 statBox(title: "Quality Days", value: "\(week.qualityWorkouts.count)")
                 Divider().frame(height: 40)
-                statBox(title: "Easy Days", value: "\(week.workouts.filter { $0.type == .easy }.count)")
+                statBox(title: "Workouts", value: isLoadingWorkouts ? "..." : "\(healthKitWorkouts.count)")
                 Divider().frame(height: 40)
-                statBox(title: "Rest Days", value: "\(week.workouts.filter { $0.type == .rest }.count)")
+                statBox(title: "Actual Miles", value: isLoadingWorkouts ? "..." : String(format: "%.1f", totalRunningDistance))
             }
         }
         .padding()
@@ -260,6 +323,226 @@ struct WeekDetailView: View {
         case .earlyQuality: return .green
         case .transitionQuality: return .orange
         case .finalQuality: return .red
+        }
+    }
+
+    // MARK: - Running Metrics Summary
+
+    private var runningMetricsSummary: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Running Summary")
+                    .font(.headline)
+
+                Spacer()
+
+                if isLoadingWorkouts {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
+
+            if runningWorkouts.isEmpty && !isLoadingWorkouts {
+                Text("No runs recorded this week")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else if !isLoadingWorkouts {
+                HStack(spacing: 0) {
+                    metricBox(
+                        icon: "figure.run",
+                        value: String(format: "%.1f", totalRunningDistance),
+                        unit: "miles",
+                        color: .blue
+                    )
+
+                    Divider().frame(height: 50)
+
+                    metricBox(
+                        icon: "clock",
+                        value: formatDuration(totalRunningDuration),
+                        unit: "time",
+                        color: .green
+                    )
+
+                    Divider().frame(height: 50)
+
+                    metricBox(
+                        icon: "speedometer",
+                        value: averageRunningPace,
+                        unit: "/mile",
+                        color: .orange
+                    )
+
+                    Divider().frame(height: 50)
+
+                    metricBox(
+                        icon: "number",
+                        value: "\(runningWorkouts.count)",
+                        unit: "runs",
+                        color: .purple
+                    )
+                }
+            }
+        }
+        .padding()
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.3), lineWidth: 1.5)
+        )
+    }
+
+    private func metricBox(icon: String, value: String, unit: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(color)
+
+            Text(value)
+                .font(.headline)
+                .fontWeight(.semibold)
+
+            Text(unit)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let hours = Int(duration) / 3600
+        let minutes = (Int(duration) % 3600) / 60
+
+        if hours > 0 {
+            return String(format: "%dh %dm", hours, minutes)
+        } else {
+            return String(format: "%dm", minutes)
+        }
+    }
+
+    // MARK: - HealthKit Workouts Section
+
+    private var healthKitWorkoutsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("All Workouts")
+                    .font(.headline)
+
+                Spacer()
+
+                if isLoadingWorkouts {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
+
+            if healthKitWorkouts.isEmpty && !isLoadingWorkouts {
+                Text("No workouts recorded this week")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding()
+            } else {
+                ForEach(healthKitWorkouts) { workout in
+                    HealthKitWorkoutCard(workout: workout)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - HealthKit Workout Card
+
+struct HealthKitWorkoutCard: View {
+    let workout: WorkoutData
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Workout type icon
+            Image(systemName: workout.type.icon)
+                .font(.title2)
+                .foregroundStyle(colorForWorkoutType(workout.type))
+                .frame(width: 40, height: 40)
+                .background(
+                    Circle()
+                        .fill(colorForWorkoutType(workout.type).opacity(0.1))
+                )
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(workout.type.rawValue)
+                        .font(.headline)
+
+                    Spacer()
+
+                    Text(workout.date.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 16) {
+                    // Duration
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.caption)
+                        Text(formatDuration(workout.duration))
+                            .font(.caption)
+                    }
+
+                    // Distance (if applicable)
+                    if let distance = workout.distance, distance > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "location.fill")
+                                .font(.caption)
+                            Text(String(format: "%.2f mi", distance / 1609.34))
+                                .font(.caption)
+                        }
+                    }
+
+                    // Calories (if applicable)
+                    if let calories = workout.caloriesBurned, calories > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "flame.fill")
+                                .font(.caption)
+                            Text("\(Int(calories)) cal")
+                                .font(.caption)
+                        }
+                    }
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(.systemBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(colorForWorkoutType(workout.type).opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private func colorForWorkoutType(_ type: WorkoutType) -> Color {
+        switch type {
+        case .running: return .blue
+        case .cycling: return .green
+        case .swimming: return .cyan
+        case .strength: return .orange
+        case .yoga: return .purple
+        case .mobility: return .pink
+        case .walking: return .mint
+        case .rest: return .gray
+        case .other: return .indigo
+        }
+    }
+
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let hours = Int(duration) / 3600
+        let minutes = (Int(duration) % 3600) / 60
+
+        if hours > 0 {
+            return String(format: "%dh %dm", hours, minutes)
+        } else {
+            return String(format: "%dm", minutes)
         }
     }
 }

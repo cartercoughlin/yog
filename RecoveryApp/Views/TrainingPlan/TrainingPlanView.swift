@@ -190,6 +190,11 @@ struct SinglePlanView: View {
     @State private var showWeekDetail = false
     @State private var showSyncBanner = false
 
+    // HealthKit actual mileage per week
+    @State private var weeklyActualMileage: [Int: Double] = [:]
+    @State private var isLoadingMileage = false
+    private let healthKitManager = HealthKitManager()
+
     var body: some View {
         Group {
             if let currentPlan = viewModel.currentPlan, currentPlan.id == plan.id {
@@ -249,6 +254,43 @@ struct SinglePlanView: View {
                 showWeekDetail = true
             }
         }
+        .task {
+            await loadWeeklyActualMileage()
+        }
+    }
+
+    // MARK: - HealthKit Data Loading
+
+    private func loadWeeklyActualMileage() async {
+        guard let currentPlan = viewModel.currentPlan else { return }
+        isLoadingMileage = true
+
+        var mileageByWeek: [Int: Double] = [:]
+
+        for week in currentPlan.weeks {
+            do {
+                let metrics = try await healthKitManager.fetchMetricsForDateRange(
+                    startDate: week.startDate,
+                    endDate: week.endDate
+                )
+
+                // Extract all running workouts and sum their distance
+                let runningMiles = metrics
+                    .flatMap { $0.workouts }
+                    .filter { $0.type == .running }
+                    .compactMap { $0.distance }
+                    .reduce(0, +) / 1609.34  // Convert to miles
+
+                if runningMiles > 0 {
+                    mileageByWeek[week.weekNumber] = runningMiles
+                }
+            } catch {
+                print("Error loading week \(week.weekNumber) mileage: \(error)")
+            }
+        }
+
+        weeklyActualMileage = mileageByWeek
+        isLoadingMileage = false
     }
 
     private func planContentView(plan: TrainingPlan) -> some View {
@@ -398,7 +440,7 @@ struct SinglePlanView: View {
                         Rectangle()
                             .fill(Color.blue.opacity(0.3))
                             .frame(width: 12, height: 12)
-                        Text("Planned")
+                        Text("Recommended")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -410,15 +452,19 @@ struct SinglePlanView: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
+                    if isLoadingMileage {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                    }
                 }
             }
 
             // Precompute arrays to reduce type-checking complexity
             let weeks: [WeeklyPlan] = plan.weeks
-            let weeksWithActuals: [WeeklyPlan] = weeks.filter { $0.actualMileage > 0 }
+            let weeksWithActuals: [WeeklyPlan] = weeks.filter { weeklyActualMileage[$0.weekNumber] != nil }
 
             Chart {
-                // Planned mileage bars
+                // Recommended mileage bars
                 ForEach(weeks) { week in
                     BarMark(
                         x: .value("Week", String(week.weekNumber)),
@@ -428,22 +474,24 @@ struct SinglePlanView: View {
                     .opacity(selectedWeekNumber == String(week.weekNumber) ? 1.0 : 0.7)
                 }
 
-                // Actual mileage line + points
+                // Actual mileage line + points (from HealthKit)
                 ForEach(weeksWithActuals) { week in
-                    LineMark(
-                        x: .value("Week", String(week.weekNumber)),
-                        y: .value("Actual Miles", week.actualMileage)
-                    )
-                    .foregroundStyle(Color.green)
-                    .lineStyle(StrokeStyle(lineWidth: 3))
+                    if let actualMileage = weeklyActualMileage[week.weekNumber] {
+                        LineMark(
+                            x: .value("Week", String(week.weekNumber)),
+                            y: .value("Actual Miles", actualMileage)
+                        )
+                        .foregroundStyle(Color.green)
+                        .lineStyle(StrokeStyle(lineWidth: 3))
 
-                    PointMark(
-                        x: .value("Week", String(week.weekNumber)),
-                        y: .value("Actual Miles", week.actualMileage)
-                    )
-                    .foregroundStyle(Color.green)
-                    .symbol(.circle)
-                    .symbolSize(80)
+                        PointMark(
+                            x: .value("Week", String(week.weekNumber)),
+                            y: .value("Actual Miles", actualMileage)
+                        )
+                        .foregroundStyle(Color.green)
+                        .symbol(.circle)
+                        .symbolSize(80)
+                    }
                 }
             }
             .frame(height: 200)

@@ -252,4 +252,115 @@ class VDOTCalculator {
             return nil
         }
     }
+
+    // MARK: - Interval Rep Time Calculations
+
+    /// Common interval distances in meters
+    enum IntervalDistance: String, CaseIterable {
+        case fourHundred = "400m"
+        case sixHundred = "600m"
+        case eightHundred = "800m"
+        case oneK = "1k"
+        case oneKm = "1km"
+        case twelvehundred = "1200m"
+        case oneMile = "mile"
+
+        var meters: Double {
+            switch self {
+            case .fourHundred: return 400
+            case .sixHundred: return 600
+            case .eightHundred: return 800
+            case .oneK, .oneKm: return 1000
+            case .twelvehundred: return 1200
+            case .oneMile: return 1609.34
+            }
+        }
+
+        var displayName: String {
+            switch self {
+            case .fourHundred: return "400m"
+            case .sixHundred: return "600m"
+            case .eightHundred: return "800m"
+            case .oneK, .oneKm: return "1k"
+            case .twelvehundred: return "1200m"
+            case .oneMile: return "mile"
+            }
+        }
+    }
+
+    /// Calculate rep time for a specific distance given pace per mile
+    /// - Parameters:
+    ///   - paceMinPerMile: Pace string in format "X:XX" (min:sec per mile)
+    ///   - distanceMeters: Distance of the rep in meters
+    /// - Returns: Formatted time string for the rep (e.g., "3:45" for a 1k)
+    static func repTimeForDistance(paceMinPerMile: String, distanceMeters: Double) -> String {
+        guard let paceSeconds = parseTime(paceMinPerMile) else { return "--:--" }
+
+        let metersPerMile = 1609.34
+        let paceSecondsPerMeter = paceSeconds / metersPerMile
+        let repTimeSeconds = paceSecondsPerMeter * distanceMeters
+
+        return formatTime(seconds: repTimeSeconds)
+    }
+
+    /// Detect interval distance from workout description
+    /// - Parameter description: Workout description (e.g., "6x1k at I pace", "8x400m repeats")
+    /// - Returns: The detected interval distance, or nil if not found
+    static func detectIntervalDistance(from description: String) -> IntervalDistance? {
+        let lowercased = description.lowercased()
+
+        // Check for each interval distance pattern
+        // Order matters - check longer patterns first to avoid partial matches
+        if lowercased.contains("1200m") || lowercased.contains("1200") {
+            return .twelvehundred
+        }
+        if lowercased.contains("1km") {
+            return .oneKm
+        }
+        if lowercased.contains("1k") {
+            return .oneK
+        }
+        if lowercased.contains("800m") || lowercased.contains("800") {
+            return .eightHundred
+        }
+        if lowercased.contains("600m") || lowercased.contains("600") {
+            return .sixHundred
+        }
+        if lowercased.contains("400m") || lowercased.contains("400") {
+            return .fourHundred
+        }
+        if lowercased.contains("mile") && (lowercased.contains("repeat") || lowercased.contains("x")) {
+            return .oneMile
+        }
+
+        return nil
+    }
+
+    /// Get formatted rep time display for an interval workout
+    /// - Parameters:
+    ///   - workoutType: The training workout type
+    ///   - description: Workout description to detect interval distance
+    ///   - goalRacePaceSecPerMile: Goal race pace in seconds per mile
+    ///   - raceDistance: Target race distance
+    /// - Returns: A tuple with (repTime, distanceLabel) or nil if not an interval workout
+    static func intervalRepTimeDisplay(
+        workoutType: TrainingWorkoutType,
+        description: String,
+        goalRacePaceSecPerMile: Double,
+        raceDistance: RaceDistance
+    ) -> (repTime: String, distanceLabel: String)? {
+        // Only show rep times for interval and repetition workouts
+        guard workoutType == .interval || workoutType == .repetition else { return nil }
+
+        // Detect the interval distance from description
+        guard let intervalDistance = detectIntervalDistance(from: description) else { return nil }
+
+        // Get the pace for this workout type
+        let pace = paceForWorkoutType(workoutType, goalRacePaceSecPerMile: goalRacePaceSecPerMile, raceDistance: raceDistance)
+
+        // Calculate rep time
+        let repTime = repTimeForDistance(paceMinPerMile: pace, distanceMeters: intervalDistance.meters)
+
+        return (repTime: repTime, distanceLabel: intervalDistance.displayName)
+    }
 }

@@ -596,6 +596,18 @@ struct WorkoutCard: View {
         return VDOTCalculator.paceForWorkoutType(workout.type, goalRacePaceSecPerMile: goalRacePaceSecPerMile, raceDistance: plan.raceDistance)
     }
 
+    // Calculate interval rep time for workouts with specific distances (1k, 400m, etc.)
+    private var intervalRepTimeDisplay: (repTime: String, distanceLabel: String)? {
+        let raceMiles = plan.raceDistance.meters / 1609.34
+        let goalRacePaceSecPerMile = plan.goalTimeInSeconds / raceMiles
+        return VDOTCalculator.intervalRepTimeDisplay(
+            workoutType: workout.type,
+            description: workout.description,
+            goalRacePaceSecPerMile: goalRacePaceSecPerMile,
+            raceDistance: plan.raceDistance
+        )
+    }
+
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMM d"
@@ -655,6 +667,13 @@ struct WorkoutCard: View {
                             .font(.subheadline)
                             .foregroundStyle(workoutColor)
                     }
+                }
+
+                // Show interval rep time for workouts with specific distances (1k, 400m, etc.)
+                if let repDisplay = intervalRepTimeDisplay {
+                    Text("\(repDisplay.repTime)/\(repDisplay.distanceLabel)")
+                        .font(.caption)
+                        .foregroundStyle(workoutColor.opacity(0.8))
                 }
 
                 // Linked workout info or Log button

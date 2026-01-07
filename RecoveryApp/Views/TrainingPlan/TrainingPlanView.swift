@@ -622,8 +622,37 @@ struct SinglePlanView: View {
 struct WeekRow: View {
     let week: WeeklyPlan
 
+    private var isCompleted: Bool {
+        week.endDate < Date()
+    }
+
+    private var borderColor: Color {
+        if isCompleted {
+            return Color.green.opacity(0.4)
+        } else if week.isStepbackWeek {
+            return Color.cyan.opacity(0.3)
+        } else {
+            return Color.secondary.opacity(0.2)
+        }
+    }
+
+    private var backgroundColor: Color {
+        if isCompleted {
+            return Color.green.opacity(0.05)
+        } else {
+            return Color.clear
+        }
+    }
+
     var body: some View {
         HStack(spacing: 12) {
+            // Completion indicator
+            if isCompleted {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.green)
+            }
+
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text("Week \(week.weekNumber)")
@@ -665,9 +694,13 @@ struct WeekRow: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(backgroundColor)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(week.isStepbackWeek ? Color.cyan.opacity(0.3) : Color.secondary.opacity(0.2), lineWidth: 1.5)
+                .stroke(borderColor, lineWidth: 1.5)
         )
     }
 }

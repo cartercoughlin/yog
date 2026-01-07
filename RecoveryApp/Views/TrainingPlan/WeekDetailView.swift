@@ -440,6 +440,7 @@ struct WeekDetailView: View {
 
 struct HealthKitWorkoutCard: View {
     let workout: WorkoutData
+    @State private var showWorkoutDetail = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -506,6 +507,22 @@ struct HealthKitWorkoutCard: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(colorForWorkoutType(workout.type).opacity(0.3), lineWidth: 1)
         )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            showWorkoutDetail = true
+        }
+        .sheet(isPresented: $showWorkoutDetail) {
+            NavigationStack {
+                WorkoutDetailHistoryView(workout: workout)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") {
+                                showWorkoutDetail = false
+                            }
+                        }
+                    }
+            }
+        }
     }
 
     private func colorForWorkoutType(_ type: WorkoutType) -> Color {

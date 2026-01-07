@@ -116,6 +116,7 @@ The app requests access to:
 - Running metrics summary card showing total distance, time, pace, and run count
 - Updated mileage chart to show actual HealthKit mileage vs recommended
 - HealthKitWorkoutCard component for displaying all workout types
+- Tappable activities in All Activities section to view workout details
 - Migration system to clear old plans and start fresh with new format
 
 ### UI/UX Refinements (December 2025)

@@ -5,8 +5,6 @@ struct WeekDetailView: View {
     let plan: TrainingPlan
     @ObservedObject var viewModel: TrainingPlanViewModel
     @State private var showAddWorkout = false
-    @State private var editMode: EditMode = .inactive
-    @State private var pendingMoves: [UUID: Date] = [:]
 
     // HealthKit workout state
     @State private var healthKitWorkouts: [WorkoutData] = []
@@ -49,26 +47,6 @@ struct WeekDetailView: View {
         }
         .navigationTitle("Week \(week.weekNumber)")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                if editMode == .active {
-                    Button("Done") {
-                        // Apply all pending moves before exiting edit mode
-                        applyPendingMoves()
-                        withAnimation {
-                            editMode = .inactive
-                        }
-                    }
-                } else {
-                    Button("Edit") {
-                        withAnimation {
-                            editMode = .active
-                        }
-                    }
-                }
-            }
-        }
-        .environment(\.editMode, $editMode)
         .task {
             await loadHealthKitWorkouts()
         }
@@ -256,65 +234,16 @@ struct WeekDetailView: View {
 
     private var dailyWorkoutsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Week \(week.weekNumber) Workouts")
-                    .font(.headline)
+            Text("Week \(week.weekNumber) Workouts")
+                .font(.headline)
 
-                Spacer()
-
-                if editMode == .inactive {
-                    Button {
-                        showAddWorkout = true
-                    } label: {
-                        Label("Add Workout", systemImage: "plus.circle.fill")
-                            .font(.subheadline)
-                    }
-                }
-            }
-
-            List {
+            VStack(spacing: 8) {
                 ForEach(week.workouts) { workout in
-                    WorkoutCard(workout: workout, plan: plan, isEditMode: editMode == .active)
+                    WorkoutCard(workout: workout, plan: plan)
                         .environmentObject(viewModel)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: editMode == .active ? 8 : 0))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                }
-                .onMove { indices, newOffset in
-                    moveWorkout(from: indices, to: newOffset)
                 }
             }
-            .listStyle(.plain)
-            .frame(height: CGFloat(week.workouts.count) * 93)
-            .scrollDisabled(true)
         }
-        .sheet(isPresented: $showAddWorkout) {
-            AddCustomWorkoutSheet(week: week, viewModel: viewModel)
-        }
-    }
-
-    private func moveWorkout(from source: IndexSet, to destination: Int) {
-        guard let sourceIndex = source.first,
-              sourceIndex < week.workouts.count else { return }
-
-        // Calculate the actual destination index
-        let destIndex = sourceIndex < destination ? destination - 1 : destination
-        guard destIndex < week.workouts.count else { return }
-
-        let movedWorkout = week.workouts[sourceIndex]
-        let targetWorkout = week.workouts[destIndex]
-
-        // Accumulate the move in pending moves instead of immediately persisting
-        pendingMoves[movedWorkout.id] = targetWorkout.date
-    }
-
-    private func applyPendingMoves() {
-        // Apply all pending moves to the view model at once
-        for (workoutId, newDate) in pendingMoves {
-            viewModel.moveWorkout(from: workoutId, toDay: newDate)
-        }
-        // Clear pending moves after applying
-        pendingMoves.removeAll()
     }
 
     private var phaseColor: Color {
@@ -445,6 +374,13 @@ struct WeekDetailView: View {
                     ProgressView()
                         .scaleEffect(0.8)
                 }
+
+                Button {
+                    showAddWorkout = true
+                } label: {
+                    Label("Add", systemImage: "plus.circle.fill")
+                        .font(.subheadline)
+                }
             }
 
             if healthKitWorkouts.isEmpty && !isLoadingWorkouts {
@@ -479,6 +415,9 @@ struct WeekDetailView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showAddWorkout) {
+            AddCustomWorkoutSheet(week: week, viewModel: viewModel)
         }
     }
 
@@ -598,20 +537,17 @@ struct HealthKitWorkoutCard: View {
 struct WorkoutCard: View {
     let workout: DailyWorkout
     let plan: TrainingPlan
-    let isEditMode: Bool
     @State private var showLinkSheet = false
     @State private var showDatePicker = false
     @State private var showManualEntry = false
     @State private var showActionSheet = false
     @State private var showWorkoutDetail = false
     @State private var newDate: Date
-    @State private var isExpanded = false
     @EnvironmentObject private var viewModel: TrainingPlanViewModel
 
-    init(workout: DailyWorkout, plan: TrainingPlan, isEditMode: Bool = false) {
+    init(workout: DailyWorkout, plan: TrainingPlan) {
         self.workout = workout
         self.plan = plan
-        self.isEditMode = isEditMode
         _newDate = State(initialValue: workout.date)
     }
 
@@ -862,15 +798,12 @@ struct WorkoutCard: View {
                 }
             }
         }
-        .simultaneousGesture(
-            isEditMode ? nil : TapGesture()
-                .onEnded { _ in
-                    // If there's a linked workout, show the detail view
-                    if workout.linkedWorkout != nil {
-                        showWorkoutDetail = true
-                    }
-                }
-        )
+        .onTapGesture {
+            // If there's a linked workout, show the detail view
+            if workout.linkedWorkout != nil {
+                showWorkoutDetail = true
+            }
+        }
     }
 
     private var workoutColor: Color {

@@ -302,6 +302,11 @@ struct SinglePlanView: View {
 
                 planHeader(plan: plan)
 
+                // Current week with next workout - tappable
+                if let currentWeek = plan.currentWeek {
+                    currentWeekCard(week: currentWeek, plan: plan)
+                }
+
                 if let suggestion = viewModel.adjustmentSuggestion {
                     recoveryAlert(message: suggestion)
                 }
@@ -311,6 +316,90 @@ struct SinglePlanView: View {
                 weekList(plan: plan)
             }
             .padding(.horizontal)
+        }
+    }
+
+    private func currentWeekCard(week: WeeklyPlan, plan: TrainingPlan) -> some View {
+        Button {
+            selectedWeekNumber = "\(week.weekNumber)"
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("This Week")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Week \(week.weekNumber) - \(week.phase.rawValue)")
+                            .font(.headline)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Show next upcoming workout
+                if let nextWorkout = nextUpcomingWorkout(in: week) {
+                    Divider()
+
+                    HStack(spacing: 12) {
+                        Circle()
+                            .fill(colorForWorkoutType(nextWorkout.type))
+                            .frame(width: 10, height: 10)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Next: \(nextWorkout.type.rawValue)")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+
+                            Text(nextWorkout.date.formatted(date: .abbreviated, time: .omitted))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        if let distance = nextWorkout.distanceInMiles {
+                            Text(String(format: "%.0f mi", distance))
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                        }
+                    }
+                }
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.blue.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.blue.opacity(0.3), lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    private func nextUpcomingWorkout(in week: WeeklyPlan) -> DailyWorkout? {
+        let today = Calendar.current.startOfDay(for: Date())
+        // Find the next workout that hasn't been completed and is today or later
+        return week.workouts
+            .filter { !$0.isCompleted && Calendar.current.startOfDay(for: $0.date) >= today }
+            .sorted { $0.date < $1.date }
+            .first
+    }
+
+    private func colorForWorkoutType(_ type: TrainingWorkoutType) -> Color {
+        switch type {
+        case .easy, .long: return .green
+        case .marathon, .racePace: return .blue
+        case .threshold: return .orange
+        case .interval: return .red
+        case .repetition: return .purple
+        case .hill: return .brown
+        case .rest: return .gray
         }
     }
 

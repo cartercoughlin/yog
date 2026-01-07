@@ -257,7 +257,7 @@ struct WeekDetailView: View {
     private var dailyWorkoutsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Daily Workouts")
+                Text("Week \(week.weekNumber) Workouts")
                     .font(.headline)
 
                 Spacer()
@@ -285,7 +285,7 @@ struct WeekDetailView: View {
                 }
             }
             .listStyle(.plain)
-            .frame(height: CGFloat(week.workouts.count) * 85)
+            .frame(height: CGFloat(week.workouts.count) * 93)
             .scrollDisabled(true)
         }
         .sheet(isPresented: $showAddWorkout) {
@@ -421,10 +421,22 @@ struct WeekDetailView: View {
 
     // MARK: - HealthKit Workouts Section
 
+    private var workoutsByType: [(type: WorkoutType, workouts: [WorkoutData])] {
+        let grouped = Dictionary(grouping: healthKitWorkouts) { $0.type }
+        // Sort by workout type, with running first
+        let typeOrder: [WorkoutType] = [.running, .cycling, .swimming, .strength, .yoga, .mobility, .walking, .other, .rest]
+        return typeOrder.compactMap { type in
+            if let workouts = grouped[type], !workouts.isEmpty {
+                return (type: type, workouts: workouts.sorted { $0.date < $1.date })
+            }
+            return nil
+        }
+    }
+
     private var healthKitWorkoutsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("All Workouts")
+                Text("All Activities")
                     .font(.headline)
 
                 Spacer()
@@ -436,15 +448,51 @@ struct WeekDetailView: View {
             }
 
             if healthKitWorkouts.isEmpty && !isLoadingWorkouts {
-                Text("No workouts recorded this week")
+                Text("No activities recorded this week")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .padding()
             } else {
-                ForEach(healthKitWorkouts) { workout in
-                    HealthKitWorkoutCard(workout: workout)
+                ForEach(workoutsByType, id: \.type) { group in
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Type header
+                        HStack(spacing: 8) {
+                            Image(systemName: group.type.icon)
+                                .font(.subheadline)
+                                .foregroundStyle(colorForWorkoutType(group.type))
+
+                            Text(group.type.rawValue)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(colorForWorkoutType(group.type))
+
+                            Text("(\(group.workouts.count))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.top, 4)
+
+                        // Workouts for this type
+                        ForEach(group.workouts) { workout in
+                            HealthKitWorkoutCard(workout: workout)
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    private func colorForWorkoutType(_ type: WorkoutType) -> Color {
+        switch type {
+        case .running: return .blue
+        case .cycling: return .green
+        case .swimming: return .cyan
+        case .strength: return .orange
+        case .yoga: return .purple
+        case .mobility: return .pink
+        case .walking: return .mint
+        case .rest: return .gray
+        case .other: return .indigo
         }
     }
 }
@@ -555,6 +603,7 @@ struct WorkoutCard: View {
     @State private var showDatePicker = false
     @State private var showManualEntry = false
     @State private var showActionSheet = false
+    @State private var showWorkoutDetail = false
     @State private var newDate: Date
     @State private var isExpanded = false
     @EnvironmentObject private var viewModel: TrainingPlanViewModel
@@ -564,6 +613,19 @@ struct WorkoutCard: View {
         self.plan = plan
         self.isEditMode = isEditMode
         _newDate = State(initialValue: workout.date)
+    }
+
+    // Create WorkoutData from LinkedWorkout for detail view
+    private var linkedWorkoutData: WorkoutData? {
+        guard let linked = workout.linkedWorkout else { return nil }
+        return WorkoutData(
+            id: linked.id,
+            date: linked.completedDate,
+            type: .running,
+            duration: linked.actualDuration,
+            distance: linked.actualDistance * 1609.34, // Convert miles to meters
+            trainingStress: 0
+        )
     }
 
     private var isSkipped: Bool {
@@ -681,7 +743,7 @@ struct WorkoutCard: View {
                 }
             }
         }
-        .padding(12)
+        .padding()
         .background(
             RoundedRectangle(cornerRadius: 10)
                 .fill(isSkipped ? Color.gray.opacity(0.05) : (workout.isCompleted ? Color.green.opacity(0.05) : Color(.systemBackground)))
@@ -718,6 +780,20 @@ struct WorkoutCard: View {
         .sheet(isPresented: $showManualEntry) {
             ManualMileageEntrySheet(workout: workout)
                 .environmentObject(viewModel)
+        }
+        .sheet(isPresented: $showWorkoutDetail) {
+            if let workoutData = linkedWorkoutData {
+                NavigationStack {
+                    WorkoutDetailHistoryView(workout: workoutData)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Done") {
+                                    showWorkoutDetail = false
+                                }
+                            }
+                        }
+                }
+            }
         }
         .sheet(isPresented: $showDatePicker) {
             NavigationStack {
@@ -789,8 +865,9 @@ struct WorkoutCard: View {
         .simultaneousGesture(
             isEditMode ? nil : TapGesture()
                 .onEnded { _ in
-                    withAnimation(.spring(response: 0.3)) {
-                        isExpanded.toggle()
+                    // If there's a linked workout, show the detail view
+                    if workout.linkedWorkout != nil {
+                        showWorkoutDetail = true
                     }
                 }
         )

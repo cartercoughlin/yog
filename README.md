@@ -12,11 +12,13 @@ A comprehensive iOS app for tracking athletic recovery, monitoring health metric
 - **Weekly Trends**: 7-day average tracking with visual trend indicators
 
 ### 2. Training Plans
+- **Quality Days Focus**: Plans generate only the essential workouts - Long Run and Quality Workout (intervals, tempo, etc.)
 - **VDOT-Based Pacing**: Scientifically-backed training zones using Jack Daniels' VDOT methodology
+- **Automatic HealthKit Integration**: All workouts from HealthKit automatically displayed in weekly breakdown
+- **Running Metrics Summary**: Total distance, time, pace, and number of runs calculated from HealthKit data
+- **Actual vs Recommended Mileage**: Weekly chart shows recommended mileage vs actual HealthKit mileage
 - **Multiple Plan Support**: Create and manage multiple training plans simultaneously
 - **Race-Specific Training**: Customized plans for 5K, 10K, Half Marathon, and Marathon distances
-- **Weekly Progression**: Structured weekly training with varied workout types
-- **Progress Tracking**: Monitor completed workouts and plan adherence
 
 ### 3. Injury Tracker
 - **Body Region Mapping**: Track injuries by specific body regions
@@ -107,6 +109,14 @@ The app requests access to:
 - Workout Data
 
 ## Recent Updates
+
+### Training Plan Overhaul (January 2026)
+- Simplified plan generation to focus on quality days only (Long Run + Quality Workout)
+- Automatic HealthKit workout integration - all workouts displayed in weekly view
+- Running metrics summary card showing total distance, time, pace, and run count
+- Updated mileage chart to show actual HealthKit mileage vs recommended
+- HealthKitWorkoutCard component for displaying all workout types
+- Migration system to clear old plans and start fresh with new format
 
 ### UI/UX Refinements (December 2025)
 - Removed full-screen gradients in favor of cleaner, more focused design

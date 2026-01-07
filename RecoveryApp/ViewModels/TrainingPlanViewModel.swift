@@ -23,8 +23,7 @@ class TrainingPlanViewModel: ObservableObject {
     @Published var goalHours = 3
     @Published var goalMinutes = 30
     @Published var goalSeconds = 0
-    @Published var currentMinWeeklyMileage: Double = 30
-    @Published var currentMaxWeeklyMileage: Double = 40
+    @Published var currentWeeklyMileage: Double = 35
     @Published var minWeeklyMileage: Double = 40
     @Published var maxWeeklyMileage: Double = 55
     @Published var daysPerWeek: Int = 6
@@ -37,7 +36,7 @@ class TrainingPlanViewModel: ObservableObject {
     private let healthKitManager = HealthKitManager()
     private let userDefaultsKey = "savedTrainingPlans"
     private let planVersionKey = "trainingPlanVersion"
-    private let currentPlanVersion = 2  // Version 2: Quality days only format
+    private let currentPlanVersion = 3  // Version 3: Recommended mileage stored, foundation phase long-run only
     private var isLoadingPlans = false
 
     init() {
@@ -76,8 +75,8 @@ class TrainingPlanViewModel: ObservableObject {
         }
 
         // Set desired mileage as current + race-specific increase
-        minWeeklyMileage = min(80, currentMinWeeklyMileage + mileageIncrease.min)
-        maxWeeklyMileage = min(100, currentMaxWeeklyMileage + mileageIncrease.max)
+        minWeeklyMileage = min(80, currentWeeklyMileage + mileageIncrease.min)
+        maxWeeklyMileage = min(100, currentWeeklyMileage + mileageIncrease.max)
 
         // Ensure max is always greater than min
         if maxWeeklyMileage <= minWeeklyMileage {
@@ -142,7 +141,8 @@ class TrainingPlanViewModel: ObservableObject {
                 phase: phase,
                 workouts: workouts,
                 startDate: weekStartDate,
-                isStepbackWeek: isStepback
+                isStepbackWeek: isStepback,
+                recommendedMileage: mileage
             ))
         }
 
@@ -240,8 +240,10 @@ class TrainingPlanViewModel: ObservableObject {
     }
 
     private func isStepbackWeek(weekNumber: Int, totalWeeks: Int) -> Bool {
-        // Every 4th week is a stepback, except during final taper (last 2 weeks)
-        return (weekNumber % 4 == 0) && weekNumber < (totalWeeks - 2)
+        // Every 4th week is a stepback, but only after foundation phase (week 4+)
+        // and not during final taper (last 2 weeks)
+        // Week 4 is not a stepback since it's still in foundation phase
+        return (weekNumber % 4 == 0) && weekNumber > 4 && weekNumber < (totalWeeks - 2)
     }
 
     // MARK: - Workout Generation
@@ -286,9 +288,13 @@ class TrainingPlanViewModel: ObservableObject {
             description: longRunDescription
         ))
 
-        // Tuesday (day 2): Quality workout (eliminated during final 2-week taper and stepback weeks)
+        // Tuesday (day 2): Quality workout
+        // - Not in first 4 weeks (foundation phase - only long runs)
+        // - Not during final 2-week taper
+        // - Not on stepback weeks
         let isTaperWeek = weekNumber >= 15  // Weeks 15 and 16 are taper weeks
-        if !isTaperWeek && !isStepback {
+        let isFoundationPhase = weekNumber <= 4  // First 4 weeks only have long run
+        if !isTaperWeek && !isStepback && !isFoundationPhase {
             let tuesdayWorkout = generateTuesdayQuality(
                 phase: phase,
                 weekNumber: weekNumber,
@@ -602,7 +608,8 @@ class TrainingPlanViewModel: ObservableObject {
                         phase: week.phase,
                         workouts: updatedWorkouts,
                         startDate: week.startDate,
-                        isStepbackWeek: week.isStepbackWeek
+                        isStepbackWeek: week.isStepbackWeek,
+                        recommendedMileage: week.recommendedMileage
                     )
 
                     // Update the plan
@@ -661,7 +668,8 @@ class TrainingPlanViewModel: ObservableObject {
                         phase: week.phase,
                         workouts: updatedWorkouts,
                         startDate: week.startDate,
-                        isStepbackWeek: week.isStepbackWeek
+                        isStepbackWeek: week.isStepbackWeek,
+                        recommendedMileage: week.recommendedMileage
                     )
 
                     let updatedPlan = TrainingPlan(
@@ -718,7 +726,8 @@ class TrainingPlanViewModel: ObservableObject {
                         phase: week.phase,
                         workouts: updatedWorkouts,
                         startDate: week.startDate,
-                        isStepbackWeek: week.isStepbackWeek
+                        isStepbackWeek: week.isStepbackWeek,
+                        recommendedMileage: week.recommendedMileage
                     )
 
                     let updatedPlan = TrainingPlan(
@@ -776,7 +785,8 @@ class TrainingPlanViewModel: ObservableObject {
                         phase: week.phase,
                         workouts: updatedWorkouts,
                         startDate: week.startDate,
-                        isStepbackWeek: week.isStepbackWeek
+                        isStepbackWeek: week.isStepbackWeek,
+                        recommendedMileage: week.recommendedMileage
                     )
 
                     let updatedPlan = TrainingPlan(
@@ -852,7 +862,8 @@ class TrainingPlanViewModel: ObservableObject {
                         phase: week.phase,
                         workouts: updatedWorkouts,
                         startDate: week.startDate,
-                        isStepbackWeek: week.isStepbackWeek
+                        isStepbackWeek: week.isStepbackWeek,
+                        recommendedMileage: week.recommendedMileage
                     )
 
                     let updatedPlan = TrainingPlan(
@@ -917,7 +928,8 @@ class TrainingPlanViewModel: ObservableObject {
             phase: week.phase,
             workouts: updatedWorkouts,
             startDate: week.startDate,
-            isStepbackWeek: week.isStepbackWeek
+            isStepbackWeek: week.isStepbackWeek,
+            recommendedMileage: week.recommendedMileage
         )
 
         let updatedPlan = TrainingPlan(
@@ -956,7 +968,8 @@ class TrainingPlanViewModel: ObservableObject {
                     phase: week.phase,
                     workouts: updatedWorkouts,
                     startDate: week.startDate,
-                    isStepbackWeek: week.isStepbackWeek
+                    isStepbackWeek: week.isStepbackWeek,
+                    recommendedMileage: week.recommendedMileage
                 )
 
                 let updatedPlan = TrainingPlan(
@@ -1013,7 +1026,8 @@ class TrainingPlanViewModel: ObservableObject {
                         phase: week.phase,
                         workouts: updatedWorkouts.sorted { $0.date < $1.date },
                         startDate: week.startDate,
-                        isStepbackWeek: week.isStepbackWeek
+                        isStepbackWeek: week.isStepbackWeek,
+                        recommendedMileage: week.recommendedMileage
                     )
 
                     let updatedPlan = TrainingPlan(

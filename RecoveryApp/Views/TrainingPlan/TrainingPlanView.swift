@@ -275,11 +275,11 @@ struct SinglePlanView: View {
                 )
 
                 // Extract all running workouts and sum their distance
-                let runningMiles = metrics
-                    .flatMap { $0.workouts }
-                    .filter { $0.type == .running }
-                    .compactMap { $0.distance }
-                    .reduce(0, +) / 1609.34  // Convert to miles
+                let allWorkouts = metrics.flatMap { $0.workouts }
+                let runningWorkouts = allWorkouts.filter { $0.type == .running }
+                let distances: [Double] = runningWorkouts.compactMap { $0.distance }
+                let totalMeters = distances.reduce(0, +)
+                let runningMiles = totalMeters / 1609.34  // Convert to miles
 
                 if runningMiles > 0 {
                     mileageByWeek[week.weekNumber] = runningMiles
@@ -566,7 +566,7 @@ struct WeekRow: View {
                     .font(.subheadline)
                     .fontWeight(.semibold)
 
-                Text("\(week.qualityWorkouts.count) quality workouts")
+                Text("\(week.qualityWorkouts.count) quality workout\(week.qualityWorkouts.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

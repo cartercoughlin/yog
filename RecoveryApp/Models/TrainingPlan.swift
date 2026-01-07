@@ -194,6 +194,7 @@ struct WeeklyPlan: Identifiable, Codable {
     let workouts: [DailyWorkout]
     let startDate: Date
     let isStepbackWeek: Bool  // Every 3rd week for recovery
+    let recommendedMileage: Double  // Target weekly mileage
 
     init(
         id: UUID = UUID(),
@@ -201,7 +202,8 @@ struct WeeklyPlan: Identifiable, Codable {
         phase: TrainingPhase,
         workouts: [DailyWorkout],
         startDate: Date,
-        isStepbackWeek: Bool = false
+        isStepbackWeek: Bool = false,
+        recommendedMileage: Double = 0
     ) {
         self.id = id
         self.weekNumber = weekNumber
@@ -209,10 +211,11 @@ struct WeeklyPlan: Identifiable, Codable {
         self.workouts = workouts
         self.startDate = startDate
         self.isStepbackWeek = isStepbackWeek
+        self.recommendedMileage = recommendedMileage
     }
 
     var totalMileage: Double {
-        workouts.compactMap { $0.distanceInMiles }.reduce(0, +)
+        recommendedMileage
     }
 
     var actualMileage: Double {

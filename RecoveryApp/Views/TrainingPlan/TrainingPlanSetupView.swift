@@ -95,34 +95,22 @@ struct TrainingPlanSetupView: View {
 
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Minimum: \(Int(viewModel.currentMinWeeklyMileage)) miles/week")
+                        Text("\(Int(viewModel.currentWeeklyMileage)) miles/week")
                             .font(.subheadline)
 
                         Slider(
-                            value: $viewModel.currentMinWeeklyMileage,
+                            value: $viewModel.currentWeeklyMileage,
                             in: 10...80,
                             step: 5
                         )
-                        .onChange(of: viewModel.currentMinWeeklyMileage) { _, _ in
-                            viewModel.updateDesiredMileageDefaults()
-                        }
-
-                        Text("Maximum: \(Int(viewModel.currentMaxWeeklyMileage)) miles/week")
-                            .font(.subheadline)
-
-                        Slider(
-                            value: $viewModel.currentMaxWeeklyMileage,
-                            in: 15...85,
-                            step: 5
-                        )
-                        .onChange(of: viewModel.currentMaxWeeklyMileage) { _, _ in
+                        .onChange(of: viewModel.currentWeeklyMileage) { _, _ in
                             viewModel.updateDesiredMileageDefaults()
                         }
                     }
                 } header: {
-                    Text("Current Weekly Mileage Range")
+                    Text("Current Weekly Mileage")
                 } footer: {
-                    Text("What is your current typical weekly mileage range?")
+                    Text("What is your current typical weekly mileage?")
                 }
 
                 Section {

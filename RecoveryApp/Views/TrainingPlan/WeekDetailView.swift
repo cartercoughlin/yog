@@ -27,7 +27,7 @@ struct WeekDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
                 // Week Header
                 weekHeader
 
@@ -255,7 +255,7 @@ struct WeekDetailView: View {
     }
 
     private var dailyWorkoutsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Daily Workouts")
                     .font(.headline)
@@ -276,7 +276,7 @@ struct WeekDetailView: View {
                 ForEach(week.workouts) { workout in
                     WorkoutCard(workout: workout, plan: plan, isEditMode: editMode == .active)
                         .environmentObject(viewModel)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 12, trailing: editMode == .active ? 8 : 0))
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: editMode == .active ? 8 : 0))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
@@ -285,7 +285,7 @@ struct WeekDetailView: View {
                 }
             }
             .listStyle(.plain)
-            .frame(height: CGFloat(week.workouts.count) * 170)
+            .frame(height: CGFloat(week.workouts.count) * 85)
             .scrollDisabled(true)
         }
         .sheet(isPresented: $showAddWorkout) {
@@ -422,7 +422,7 @@ struct WeekDetailView: View {
     // MARK: - HealthKit Workouts Section
 
     private var healthKitWorkoutsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("All Workouts")
                     .font(.headline)
@@ -617,124 +617,71 @@ struct WorkoutCard: View {
     }
 
     private var mainCardContent: some View {
-        VStack(spacing: 12) {
-            // Main card content
-            HStack(spacing: 12) {
-                // Status indicator
-                Circle()
-                    .fill(isSkipped ? Color.gray : (workout.isCompleted ? Color.green : workoutColor))
-                    .frame(width: 10, height: 10)
-                    .padding(.leading, 8)
+        HStack(spacing: 12) {
+            // Status indicator
+            Circle()
+                .fill(isSkipped ? Color.gray : (workout.isCompleted ? Color.green : workoutColor))
+                .frame(width: 10, height: 10)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(displayTitle)
-                            .font(.headline)
+            // Left side: workout info
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(displayTitle)
+                        .font(.headline)
 
-                        if workout.type.isQuality {
-                            Image(systemName: "star.fill")
-                                .font(.caption)
-                                .foregroundStyle(.yellow)
-                        }
-
-                        if workout.isCompleted {
-                            Image(systemName: isSkipped ? "xmark.circle.fill" : "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(isSkipped ? .gray : .green)
-                        }
-
-                        Spacer()
-
-                        if let distance = workout.distanceInMiles {
-                            Text(String(format: "%.0f mi", distance))
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                        }
+                    if workout.isCompleted {
+                        Image(systemName: isSkipped ? "xmark.circle.fill" : "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(isSkipped ? .gray : .green)
                     }
+                }
 
-                    // Only show description for non-custom workouts
-                    if !isCustomWorkout {
-                        Text(workout.description)
+                Text(workout.description)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            // Right side: distance, pace, and action
+            VStack(alignment: .trailing, spacing: 4) {
+                HStack(spacing: 8) {
+                    if let distance = workout.distanceInMiles {
+                        Text(String(format: "%.0f mi", distance))
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .fontWeight(.semibold)
                     }
 
                     if let pace = calculatedPace {
-                        HStack(spacing: 4) {
-                            Image(systemName: "speedometer")
-                                .font(.caption)
-                            Text("\(pace) /mi")
-                                .font(.caption)
-                        }
-                        .foregroundStyle(workoutColor)
+                        Text("\(pace)/mi")
+                            .font(.subheadline)
+                            .foregroundStyle(workoutColor)
                     }
                 }
-            }
 
-            // Linked workout display
-            if let linked = workout.linkedWorkout {
-                Divider()
-
-                HStack(spacing: 16) {
-                    // Only show distance for distance-based workouts
-                    if linked.actualDistance > 0 {
-                        VStack(spacing: 2) {
+                // Linked workout info or Log button
+                if let linked = workout.linkedWorkout {
+                    HStack(spacing: 8) {
+                        if linked.actualDistance > 0 {
                             Text(linked.formattedDistance)
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                            Text("Distance")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                            Text("\(linked.actualPace)/mi")
                         }
-
-                        VStack(spacing: 2) {
-                            Text("\(linked.actualPace)")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                            Text("Pace /mi")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    VStack(spacing: 2) {
                         Text(linked.formattedDuration)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                        Text("Duration")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
                     }
-
-                    VStack(spacing: 2) {
-                        Text(linked.completedDate.formatted(date: .abbreviated, time: .omitted))
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                        Text("Completed")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .foregroundStyle(.green)
-            }
-
-            // Action button for incomplete workouts
-            if workout.date <= Date() && !workout.isCompleted {
-                HStack {
-                    Spacer()
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                } else if workout.date <= Date() && !workout.isCompleted {
                     Button {
                         showActionSheet = true
                     } label: {
-                        Text("Log Workout")
+                        Text("Log")
                             .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
                     }
                     .buttonStyle(.bordered)
                 }
             }
         }
-        .padding()
+        .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10)
                 .fill(isSkipped ? Color.gray.opacity(0.05) : (workout.isCompleted ? Color.green.opacity(0.05) : Color(.systemBackground)))

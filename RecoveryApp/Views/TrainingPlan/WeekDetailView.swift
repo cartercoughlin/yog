@@ -7,6 +7,9 @@ struct WeekDetailView: View {
     @State private var showAddWorkout = false
     @State private var editMode: EditMode = .inactive
     @State private var pendingMoves: [UUID: Date] = [:]
+    @State private var weekActivities: [WorkoutData] = []
+    @State private var isLoadingActivities = false
+    private let healthKitManager = HealthKitManager()
 
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -28,6 +31,9 @@ struct WeekDetailView: View {
 
                 // Training Paces Reference
                 trainingPacesCard
+
+                // Actual Activities from the Week
+                actualActivitiesSection
 
                 // Daily Workouts
                 dailyWorkoutsSection
@@ -56,6 +62,30 @@ struct WeekDetailView: View {
             }
         }
         .environment(\.editMode, $editMode)
+        .onAppear {
+            fetchWeekActivities()
+        }
+    }
+
+    private func fetchWeekActivities() {
+        isLoadingActivities = true
+        Task {
+            do {
+                let activities = try await healthKitManager.fetchWorkoutsForWeek(
+                    startDate: week.startDate,
+                    endDate: week.endDate
+                )
+                await MainActor.run {
+                    weekActivities = activities
+                    isLoadingActivities = false
+                }
+            } catch {
+                print("Error fetching week activities: \(error)")
+                await MainActor.run {
+                    isLoadingActivities = false
+                }
+            }
+        }
     }
 
     private var weekHeader: some View {
@@ -189,6 +219,116 @@ struct WeekDetailView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var actualActivitiesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Actual Activities This Week")
+                .font(.headline)
+
+            if isLoadingActivities {
+                ProgressView("Loading activities...")
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else if weekActivities.isEmpty {
+                Text("No activities recorded this week")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                VStack(spacing: 12) {
+                    // Summary metrics
+                    weeklyMetricsSummary
+
+                    // Individual activities
+                    ForEach(weekActivities) { activity in
+                        ActivityCard(activity: activity)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+    }
+
+    private var weeklyMetricsSummary: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 20) {
+                // Total Distance
+                VStack {
+                    Text("\(String(format: "%.1f", totalActivityMileage)) mi")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Text("Total Distance")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+                    .frame(height: 40)
+
+                // Total Time
+                VStack {
+                    Text(formatTotalTime(totalActivityTime))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Text("Total Time")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+                    .frame(height: 40)
+
+                // Average Pace
+                VStack {
+                    Text(formatPace(averageActivityPace))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Text("Avg Pace")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .cornerRadius(8)
+        }
+    }
+
+    private var totalActivityMileage: Double {
+        weekActivities.compactMap { $0.distanceInMiles }.reduce(0, +)
+    }
+
+    private var totalActivityTime: TimeInterval {
+        weekActivities.map { $0.duration }.reduce(0, +)
+    }
+
+    private var averageActivityPace: TimeInterval? {
+        let runningActivities = weekActivities.filter { $0.type == .running && $0.distance != nil && $0.distance! > 0 }
+        guard !runningActivities.isEmpty else { return nil }
+        let totalPace = runningActivities.compactMap { $0.pacePerMile }.reduce(0, +)
+        return totalPace / Double(runningActivities.count)
+    }
+
+    private func formatTotalTime(_ time: TimeInterval) -> String {
+        let hours = Int(time) / 3600
+        let minutes = (Int(time) % 3600) / 60
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else {
+            return "\(minutes)m"
+        }
+    }
+
+    private func formatPace(_ pace: TimeInterval?) -> String {
+        guard let pace = pace else { return "—" }
+        let minutes = Int(pace) / 60
+        let seconds = Int(pace) % 60
+        return "\(minutes):\(String(format: "%02d", seconds))"
     }
 
     private var dailyWorkoutsSection: some View {
@@ -832,6 +972,126 @@ struct AddCustomWorkoutSheet: View {
         )
 
         dismiss()
+    }
+}
+
+// MARK: - Activity Card Component
+struct ActivityCard: View {
+    let activity: WorkoutData
+
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE, MMM d, h:mm a"
+        return formatter
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                // Activity Type Icon and Name
+                Image(systemName: activity.type.icon)
+                    .foregroundStyle(colorForWorkoutType(activity.type))
+                    .font(.title3)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(activity.type.rawValue)
+                        .font(.headline)
+                    Text(activity.date, formatter: dateFormatter)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+
+            Divider()
+
+            // Metrics
+            HStack(spacing: 20) {
+                if let distance = activity.distanceInMiles {
+                    MetricView(
+                        label: "Distance",
+                        value: String(format: "%.2f mi", distance),
+                        icon: "figure.run"
+                    )
+                }
+
+                if let pace = activity.pacePerMile {
+                    let minutes = Int(pace) / 60
+                    let seconds = Int(pace) % 60
+                    MetricView(
+                        label: "Pace",
+                        value: "\(minutes):\(String(format: "%02d", seconds))/mi",
+                        icon: "speedometer"
+                    )
+                }
+
+                MetricView(
+                    label: "Duration",
+                    value: formatDuration(activity.duration),
+                    icon: "clock"
+                )
+
+                if let hr = activity.averageHeartRate {
+                    MetricView(
+                        label: "Avg HR",
+                        value: "\(hr) bpm",
+                        icon: "heart.fill"
+                    )
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(8)
+    }
+
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let hours = Int(duration) / 3600
+        let minutes = (Int(duration) % 3600) / 60
+        let seconds = Int(duration) % 60
+
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+    }
+
+    private func colorForWorkoutType(_ type: WorkoutType) -> Color {
+        switch type.color {
+        case "blue": return .blue
+        case "green": return .green
+        case "cyan": return .cyan
+        case "orange": return .orange
+        case "purple": return .purple
+        case "pink": return .pink
+        case "mint": return .mint
+        case "gray": return .gray
+        case "indigo": return .indigo
+        default: return .blue
+        }
+    }
+}
+
+struct MetricView: View {
+    let label: String
+    let value: String
+    let icon: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.medium)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

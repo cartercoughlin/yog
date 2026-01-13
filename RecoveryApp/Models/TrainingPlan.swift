@@ -251,6 +251,7 @@ struct TrainingPlan: Identifiable {
     let weeks: [WeeklyPlan]
     let vdot: Double  // VDOT value for pace calculations
     let allowRecoveryAdjustments: Bool
+    let includeQualityWorkouts: Bool
     let createdDate: Date
 
     init(
@@ -265,6 +266,7 @@ struct TrainingPlan: Identifiable {
         weeks: [WeeklyPlan],
         vdot: Double,
         allowRecoveryAdjustments: Bool = true,
+        includeQualityWorkouts: Bool = true,
         createdDate: Date = Date()
     ) {
         self.id = id
@@ -278,6 +280,7 @@ struct TrainingPlan: Identifiable {
         self.weeks = weeks
         self.vdot = vdot
         self.allowRecoveryAdjustments = allowRecoveryAdjustments
+        self.includeQualityWorkouts = includeQualityWorkouts
         self.createdDate = createdDate
     }
 }
@@ -287,7 +290,7 @@ extension TrainingPlan: Codable {
     enum CodingKeys: String, CodingKey {
         case id, name, raceDistance, raceDate, goalTimeInSeconds
         case minWeeklyMileage, maxWeeklyMileage, daysPerWeek
-        case weeks, vdot, allowRecoveryAdjustments, createdDate
+        case weeks, vdot, allowRecoveryAdjustments, includeQualityWorkouts, createdDate
     }
 
     init(from decoder: Decoder) throws {
@@ -307,6 +310,7 @@ extension TrainingPlan: Codable {
         weeks = try container.decode([WeeklyPlan].self, forKey: .weeks)
         vdot = try container.decode(Double.self, forKey: .vdot)
         allowRecoveryAdjustments = try container.decode(Bool.self, forKey: .allowRecoveryAdjustments)
+        includeQualityWorkouts = try container.decodeIfPresent(Bool.self, forKey: .includeQualityWorkouts) ?? true
         createdDate = try container.decode(Date.self, forKey: .createdDate)
     }
 
@@ -324,6 +328,7 @@ extension TrainingPlan: Codable {
         try container.encode(weeks, forKey: .weeks)
         try container.encode(vdot, forKey: .vdot)
         try container.encode(allowRecoveryAdjustments, forKey: .allowRecoveryAdjustments)
+        try container.encode(includeQualityWorkouts, forKey: .includeQualityWorkouts)
         try container.encode(createdDate, forKey: .createdDate)
     }
 

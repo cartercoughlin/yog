@@ -176,6 +176,17 @@ struct TrainingPlanSetupView: View {
                 }
 
                 Section {
+                    Toggle(
+                        "Include Quality Workouts",
+                        isOn: $viewModel.includeQualityWorkouts
+                    )
+                } header: {
+                    Text("Workout Structure")
+                } footer: {
+                    Text("When enabled, your plan will include quality workouts (tempo, intervals, etc.). When disabled, your plan will only include easy runs and long runs")
+                }
+
+                Section {
                     VStack(alignment: .leading, spacing: 12) {
                         InfoRow(
                             title: "Training Duration",
@@ -259,6 +270,7 @@ struct TrainingPlanSetupView: View {
         viewModel.maxWeeklyMileage = plan.maxWeeklyMileage
         viewModel.daysPerWeek = plan.daysPerWeek
         viewModel.allowRecoveryAdjustments = plan.allowRecoveryAdjustments
+        viewModel.includeQualityWorkouts = plan.includeQualityWorkouts
 
         // Convert goal time back to hours/minutes/seconds
         let totalSeconds = Int(plan.goalTimeInSeconds)

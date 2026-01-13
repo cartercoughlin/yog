@@ -542,6 +542,20 @@ class HealthKitManager: ObservableObject {
         )
     }
 
+    /// Fetch all workouts for a specific week
+    func fetchWorkoutsForWeek(startDate: Date, endDate: Date) async throws -> [WorkoutData] {
+        // Fetch resting HR and date of birth for better training stress calculations
+        let restingHR = try? await fetchRestingHeartRate(for: endDate)
+        let dateOfBirth = try? await fetchDateOfBirth()
+
+        return try await fetchWorkouts(
+            startDate: startDate,
+            endDate: endDate,
+            restingHR: restingHR,
+            dateOfBirth: dateOfBirth
+        )
+    }
+
     private func fetchWorkouts(startDate: Date, endDate: Date, restingHR: Int? = nil, dateOfBirth: Date? = nil) async throws -> [WorkoutData] {
         let workoutType = HKObjectType.workoutType()
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)

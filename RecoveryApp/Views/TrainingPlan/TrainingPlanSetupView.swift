@@ -154,6 +154,19 @@ struct TrainingPlanSetupView: View {
 
                 Section {
                     Toggle(
+                        "Include Quality Workouts",
+                        isOn: $viewModel.includeWorkouts
+                    )
+                } header: {
+                    Text("Workout Structure")
+                } footer: {
+                    Text(viewModel.includeWorkouts
+                        ? "Your plan will include quality workouts (intervals, tempo runs) in addition to long runs"
+                        : "Your plan will only include weekly long runs - ideal for time-crunched runners")
+                }
+
+                Section {
+                    Toggle(
                         "Allow Recovery-Based Adjustments",
                         isOn: $viewModel.allowRecoveryAdjustments
                     )
@@ -177,7 +190,7 @@ struct TrainingPlanSetupView: View {
 
                         InfoRow(
                             title: "Quality Days",
-                            value: "Starts week 5"
+                            value: viewModel.includeWorkouts ? "Starts after foundation phase" : "Long runs only"
                         )
                     }
                 } header: {
@@ -247,6 +260,7 @@ struct TrainingPlanSetupView: View {
         viewModel.maxWeeklyMileage = plan.maxWeeklyMileage
         viewModel.daysPerWeek = plan.daysPerWeek
         viewModel.allowRecoveryAdjustments = plan.allowRecoveryAdjustments
+        viewModel.includeWorkouts = plan.includeWorkouts
 
         // Convert goal time back to hours/minutes/seconds
         let totalSeconds = Int(plan.goalTimeInSeconds)

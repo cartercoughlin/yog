@@ -254,6 +254,7 @@ struct TrainingPlan: Identifiable {
     let weeks: [WeeklyPlan]
     let vdot: Double  // VDOT value for pace calculations
     let allowRecoveryAdjustments: Bool
+    let includeWorkouts: Bool  // Whether to include quality workouts or just long runs
     let createdDate: Date
 
     init(
@@ -268,6 +269,7 @@ struct TrainingPlan: Identifiable {
         weeks: [WeeklyPlan],
         vdot: Double,
         allowRecoveryAdjustments: Bool = true,
+        includeWorkouts: Bool = true,
         createdDate: Date = Date()
     ) {
         self.id = id
@@ -281,6 +283,7 @@ struct TrainingPlan: Identifiable {
         self.weeks = weeks
         self.vdot = vdot
         self.allowRecoveryAdjustments = allowRecoveryAdjustments
+        self.includeWorkouts = includeWorkouts
         self.createdDate = createdDate
     }
 }
@@ -290,7 +293,7 @@ extension TrainingPlan: Codable {
     enum CodingKeys: String, CodingKey {
         case id, name, raceDistance, raceDate, goalTimeInSeconds
         case minWeeklyMileage, maxWeeklyMileage, daysPerWeek
-        case weeks, vdot, allowRecoveryAdjustments, createdDate
+        case weeks, vdot, allowRecoveryAdjustments, includeWorkouts, createdDate
     }
 
     init(from decoder: Decoder) throws {
@@ -304,8 +307,9 @@ extension TrainingPlan: Codable {
         minWeeklyMileage = try container.decode(Double.self, forKey: .minWeeklyMileage)
         maxWeeklyMileage = try container.decode(Double.self, forKey: .maxWeeklyMileage)
 
-        // Provide default value for backward compatibility with old saved plans
+        // Provide default values for backward compatibility with old saved plans
         daysPerWeek = try container.decodeIfPresent(Int.self, forKey: .daysPerWeek) ?? 6
+        includeWorkouts = try container.decodeIfPresent(Bool.self, forKey: .includeWorkouts) ?? true
 
         weeks = try container.decode([WeeklyPlan].self, forKey: .weeks)
         vdot = try container.decode(Double.self, forKey: .vdot)
@@ -327,6 +331,7 @@ extension TrainingPlan: Codable {
         try container.encode(weeks, forKey: .weeks)
         try container.encode(vdot, forKey: .vdot)
         try container.encode(allowRecoveryAdjustments, forKey: .allowRecoveryAdjustments)
+        try container.encode(includeWorkouts, forKey: .includeWorkouts)
         try container.encode(createdDate, forKey: .createdDate)
     }
 

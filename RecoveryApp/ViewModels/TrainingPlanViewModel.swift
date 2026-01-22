@@ -376,40 +376,107 @@ class TrainingPlanViewModel: ObservableObject {
             )
 
         case .earlyQuality:
-            // Early quality: Repetition work (400m repeats)
-            let reps = min(12, 8 + (weekNumber / 2))
-            return createWorkout(
-                date: addDays(to: weekStartDate, days: 2),
-                type: .repetition,
-                distance: 7,
-                goalRacePaceSecPerMile: goalRacePaceSecPerMile,
-                raceDistance: raceDistance,
-                description: "\(reps) × 400m @ R pace, 90 sec rest"
-            )
-
-        case .transitionQuality:
-            // Transition: Interval work (800m-1000m)
-            return createWorkout(
-                date: addDays(to: weekStartDate, days: 2),
-                type: .interval,
-                distance: 8,
-                goalRacePaceSecPerMile: goalRacePaceSecPerMile,
-                raceDistance: raceDistance,
-                description: "6 × 1000m @ I pace, equal jog rest"
-            )
-
-        case .finalQuality:
-            // Final quality: Race-specific work
+            // Early quality: Speed development with shorter intervals
             if raceDistance == .marathon {
+                // Marathon: 800m repeats at I pace (VO2max development)
+                let reps = min(10, 6 + (weekNumber / 2))
                 return createWorkout(
                     date: addDays(to: weekStartDate, days: 2),
-                    type: .marathon,
-                    distance: 10,
+                    type: .interval,
+                    distance: 8,
                     goalRacePaceSecPerMile: goalRacePaceSecPerMile,
                     raceDistance: raceDistance,
-                    description: "2 miles E, 6 miles @ M pace, 2 miles E"
+                    description: "\(reps) × 800m @ I pace, 2 min jog rest"
                 )
             } else {
+                // Shorter races: 400m repeats at R pace
+                let reps = min(12, 8 + (weekNumber / 2))
+                return createWorkout(
+                    date: addDays(to: weekStartDate, days: 2),
+                    type: .repetition,
+                    distance: 7,
+                    goalRacePaceSecPerMile: goalRacePaceSecPerMile,
+                    raceDistance: raceDistance,
+                    description: "\(reps) × 400m @ R pace, 90 sec rest"
+                )
+            }
+
+        case .transitionQuality:
+            // Transition: Race-specific work begins
+            if raceDistance == .marathon {
+                // Alternate between 1000m intervals and MP tempo runs
+                if weekNumber % 2 == 0 {
+                    // 1000m intervals at I pace
+                    return createWorkout(
+                        date: addDays(to: weekStartDate, days: 2),
+                        type: .interval,
+                        distance: 9,
+                        goalRacePaceSecPerMile: goalRacePaceSecPerMile,
+                        raceDistance: raceDistance,
+                        description: "6 × 1000m @ I pace, 90 sec jog rest"
+                    )
+                } else {
+                    // MP tempo run (6-8 miles at marathon pace)
+                    return createWorkout(
+                        date: addDays(to: weekStartDate, days: 2),
+                        type: .marathon,
+                        distance: 10,
+                        goalRacePaceSecPerMile: goalRacePaceSecPerMile,
+                        raceDistance: raceDistance,
+                        description: "2 miles E, 6 miles @ M pace, 2 miles E"
+                    )
+                }
+            } else {
+                // Shorter races: 800m-1000m intervals
+                return createWorkout(
+                    date: addDays(to: weekStartDate, days: 2),
+                    type: .interval,
+                    distance: 8,
+                    goalRacePaceSecPerMile: goalRacePaceSecPerMile,
+                    raceDistance: raceDistance,
+                    description: "6 × 1000m @ I pace, equal jog rest"
+                )
+            }
+
+        case .finalQuality:
+            // Final quality: Race-specific sharpening
+            if raceDistance == .marathon {
+                // Rotate through: mile repeats, long MP runs, 1200m sharpening
+                let workoutVariant = weekNumber % 3
+                switch workoutVariant {
+                case 0:
+                    // Mile repeats at I/CV pace (threshold/VO2max blend)
+                    return createWorkout(
+                        date: addDays(to: weekStartDate, days: 2),
+                        type: .interval,
+                        distance: 10,
+                        goalRacePaceSecPerMile: goalRacePaceSecPerMile,
+                        raceDistance: raceDistance,
+                        description: "5 × 1 mile @ I pace, 2 min jog rest"
+                    )
+                case 1:
+                    // Extended MP run (8-10 miles at marathon pace)
+                    return createWorkout(
+                        date: addDays(to: weekStartDate, days: 2),
+                        type: .marathon,
+                        distance: 12,
+                        goalRacePaceSecPerMile: goalRacePaceSecPerMile,
+                        raceDistance: raceDistance,
+                        description: "2 miles E, 8 miles @ M pace, 2 miles E"
+                    )
+                default:
+                    // 1200m sharpening intervals (Pfitzinger style)
+                    return createWorkout(
+                        date: addDays(to: weekStartDate, days: 2),
+                        type: .interval,
+                        distance: 9,
+                        goalRacePaceSecPerMile: goalRacePaceSecPerMile,
+                        raceDistance: raceDistance,
+                        description: "5 × 1200m @ I pace, 2 min jog rest"
+                    )
+                }
+            } else {
+                // Shorter races: mile repeats at I pace
                 return createWorkout(
                     date: addDays(to: weekStartDate, days: 2),
                     type: .interval,
@@ -492,33 +559,58 @@ class TrainingPlanViewModel: ObservableObject {
 
         switch phase {
         case .foundation:
-            // Foundation: all easy
+            // Foundation: all easy pace (10-20% slower than MP per Pfitzinger)
             return "\(miles) miles easy"
 
         case .earlyQuality:
             // Early quality: introduce light pace work in later weeks
-            if weekNumber >= 6 && miles >= 12 {
-                return "\(miles) miles: last 2 miles @ M pace"
+            if raceDistance == .marathon && miles >= 14 {
+                // Marathon: finish with 2-3 miles at MP
+                return "\(miles) miles: \(miles - 3) easy + 3 @ M pace"
+            } else if miles >= 12 {
+                return "\(miles) miles: last 2 @ M pace"
             }
             return "\(miles) miles easy"
 
         case .transitionQuality:
-            // Transition: structured M pace segments (Bandit/Higdon style)
-            if raceDistance == .marathon && miles >= 14 {
-                let segment1 = min(4, Int(Double(miles) * 0.30))
-                let segment2 = min(3, Int(Double(miles) * 0.20))
-                return "\(miles) miles: \(miles - segment1 - segment2 - 2) easy + \(segment1) @ M + 1 easy + \(segment2) @ M + 1 easy"
+            // Transition: structured M pace segments (Pfitzinger style)
+            if raceDistance == .marathon {
+                if miles >= 18 {
+                    // Long MP run: 8-10 miles at MP within the run
+                    let mpMiles = min(10, Int(Double(miles) * 0.50))
+                    let warmup = (miles - mpMiles) / 2
+                    let cooldown = miles - mpMiles - warmup
+                    return "\(miles) miles: \(warmup) easy + \(mpMiles) @ M pace + \(cooldown) easy"
+                } else if miles >= 14 {
+                    // Medium-long with MP finish
+                    let mpMiles = min(6, Int(Double(miles) * 0.40))
+                    return "\(miles) miles: \(miles - mpMiles) easy + \(mpMiles) @ M pace"
+                }
             } else if miles >= 12 {
-                return "\(miles) miles: last 3 miles @ M pace"
+                return "\(miles) miles: last 3 @ M pace"
             }
             return "\(miles) miles easy"
 
         case .finalQuality:
-            // Final quality: longer M pace segments
-            if raceDistance == .marathon && miles >= 14 {
-                let segment1 = min(6, Int(Double(miles) * 0.40))
-                let segment2 = min(4, Int(Double(miles) * 0.25))
-                return "\(miles) miles: \(miles - segment1 - segment2 - 2) easy + \(segment1) @ M + 1 easy + \(segment2) @ M + 1 easy"
+            // Final quality: peak MP long runs (Pfitzinger style extended MP workout)
+            if raceDistance == .marathon {
+                if miles >= 20 {
+                    // Peak long run: 12-14 miles at MP (the hardest workout per Pfitzinger)
+                    let mpMiles = min(14, Int(Double(miles) * 0.65))
+                    let warmup = max(2, (miles - mpMiles) / 2)
+                    let cooldown = miles - mpMiles - warmup
+                    return "\(miles) miles: \(warmup) easy + \(mpMiles) @ M pace + \(cooldown) easy"
+                } else if miles >= 16 {
+                    // Long run with substantial MP
+                    let mpMiles = min(10, Int(Double(miles) * 0.55))
+                    let warmup = (miles - mpMiles) / 2
+                    let cooldown = miles - mpMiles - warmup
+                    return "\(miles) miles: \(warmup) easy + \(mpMiles) @ M pace + \(cooldown) easy"
+                } else if miles >= 12 {
+                    // Shorter final phase long run
+                    let mpMiles = Int(Double(miles) * 0.50)
+                    return "\(miles) miles: \(miles - mpMiles) easy + \(mpMiles) @ M pace"
+                }
             } else if miles >= 10 {
                 let mpaceMiles = Int(Double(miles) * 0.40)
                 return "\(miles) miles: \(miles - mpaceMiles) easy + \(mpaceMiles) @ M pace"

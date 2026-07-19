@@ -127,6 +127,7 @@ struct DailyWorkout: Identifiable, Codable {
     let description: String
     let isCompleted: Bool
     let linkedWorkout: LinkedWorkout?  // Link to actual HealthKit workout
+    let customPaceOverride: String?  // User-specified pace that overrides the calculated pace
 
     init(
         id: UUID = UUID(),
@@ -137,7 +138,8 @@ struct DailyWorkout: Identifiable, Codable {
         paceMinPerMile: String? = nil,
         description: String,
         isCompleted: Bool = false,
-        linkedWorkout: LinkedWorkout? = nil
+        linkedWorkout: LinkedWorkout? = nil,
+        customPaceOverride: String? = nil
     ) {
         self.id = id
         self.date = date
@@ -148,6 +150,7 @@ struct DailyWorkout: Identifiable, Codable {
         self.description = description
         self.isCompleted = isCompleted
         self.linkedWorkout = linkedWorkout
+        self.customPaceOverride = customPaceOverride
     }
 
     var formattedDistance: String {
@@ -239,6 +242,18 @@ struct WeeklyPlan: Identifiable, Codable {
         let completed = workouts.filter { $0.isCompleted }.count
         return Double(completed) / Double(workouts.count) * 100
     }
+
+    func withWorkouts(_ newWorkouts: [DailyWorkout]) -> WeeklyPlan {
+        WeeklyPlan(
+            id: id,
+            weekNumber: weekNumber,
+            phase: phase,
+            workouts: newWorkouts,
+            startDate: startDate,
+            isStepbackWeek: isStepbackWeek,
+            recommendedMileage: recommendedMileage
+        )
+    }
 }
 
 // MARK: - Training Plan
@@ -255,6 +270,8 @@ struct TrainingPlan: Identifiable {
     let vdot: Double  // VDOT value for pace calculations
     let allowRecoveryAdjustments: Bool
     let includeWorkouts: Bool  // Whether to include quality workouts or just long runs
+    let longRunWeekday: Int  // Calendar weekday (1 = Sunday ... 7 = Saturday) for the long run
+    let qualityWeekday: Int  // Calendar weekday for the quality workout
     let createdDate: Date
 
     init(
@@ -270,6 +287,8 @@ struct TrainingPlan: Identifiable {
         vdot: Double,
         allowRecoveryAdjustments: Bool = true,
         includeWorkouts: Bool = true,
+        longRunWeekday: Int = 1,
+        qualityWeekday: Int = 3,
         createdDate: Date = Date()
     ) {
         self.id = id
@@ -284,7 +303,29 @@ struct TrainingPlan: Identifiable {
         self.vdot = vdot
         self.allowRecoveryAdjustments = allowRecoveryAdjustments
         self.includeWorkouts = includeWorkouts
+        self.longRunWeekday = longRunWeekday
+        self.qualityWeekday = qualityWeekday
         self.createdDate = createdDate
+    }
+
+    func withWeeks(_ newWeeks: [WeeklyPlan]) -> TrainingPlan {
+        TrainingPlan(
+            id: id,
+            name: name,
+            raceDistance: raceDistance,
+            raceDate: raceDate,
+            goalTimeInSeconds: goalTimeInSeconds,
+            minWeeklyMileage: minWeeklyMileage,
+            maxWeeklyMileage: maxWeeklyMileage,
+            daysPerWeek: daysPerWeek,
+            weeks: newWeeks,
+            vdot: vdot,
+            allowRecoveryAdjustments: allowRecoveryAdjustments,
+            includeWorkouts: includeWorkouts,
+            longRunWeekday: longRunWeekday,
+            qualityWeekday: qualityWeekday,
+            createdDate: createdDate
+        )
     }
 }
 
@@ -293,7 +334,8 @@ extension TrainingPlan: Codable {
     enum CodingKeys: String, CodingKey {
         case id, name, raceDistance, raceDate, goalTimeInSeconds
         case minWeeklyMileage, maxWeeklyMileage, daysPerWeek
-        case weeks, vdot, allowRecoveryAdjustments, includeWorkouts, createdDate
+        case weeks, vdot, allowRecoveryAdjustments, includeWorkouts
+        case longRunWeekday, qualityWeekday, createdDate
     }
 
     init(from decoder: Decoder) throws {
@@ -310,6 +352,8 @@ extension TrainingPlan: Codable {
         // Provide default values for backward compatibility with old saved plans
         daysPerWeek = try container.decodeIfPresent(Int.self, forKey: .daysPerWeek) ?? 6
         includeWorkouts = try container.decodeIfPresent(Bool.self, forKey: .includeWorkouts) ?? true
+        longRunWeekday = try container.decodeIfPresent(Int.self, forKey: .longRunWeekday) ?? 1
+        qualityWeekday = try container.decodeIfPresent(Int.self, forKey: .qualityWeekday) ?? 3
 
         weeks = try container.decode([WeeklyPlan].self, forKey: .weeks)
         vdot = try container.decode(Double.self, forKey: .vdot)
@@ -332,6 +376,8 @@ extension TrainingPlan: Codable {
         try container.encode(vdot, forKey: .vdot)
         try container.encode(allowRecoveryAdjustments, forKey: .allowRecoveryAdjustments)
         try container.encode(includeWorkouts, forKey: .includeWorkouts)
+        try container.encode(longRunWeekday, forKey: .longRunWeekday)
+        try container.encode(qualityWeekday, forKey: .qualityWeekday)
         try container.encode(createdDate, forKey: .createdDate)
     }
 

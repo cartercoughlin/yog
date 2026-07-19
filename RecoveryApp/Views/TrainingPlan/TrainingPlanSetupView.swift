@@ -4,9 +4,20 @@ struct TrainingPlanSetupView: View {
     @ObservedObject var viewModel: TrainingPlanViewModel
     @Environment(\.dismiss) var dismiss
     @State private var showDeleteConfirmation = false
+    @State private var showSaveTemplateAlert = false
+    @State private var newTemplateName = ""
 
     private var isEditing: Bool {
         viewModel.currentPlan != nil
+    }
+
+    private var weekdaySymbols: [String] {
+        Calendar.current.weekdaySymbols
+    }
+
+    private func weekdayName(_ weekday: Int) -> String {
+        let index = ((weekday - 1) % 7 + 7) % 7
+        return weekdaySymbols[index]
     }
 
     private var actualTrainingWeeks: Int {
@@ -20,6 +31,35 @@ struct TrainingPlanSetupView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if !viewModel.planTemplates.isEmpty {
+                    Section {
+                        ForEach(viewModel.planTemplates) { template in
+                            Button {
+                                withAnimation {
+                                    viewModel.applyTemplate(template)
+                                }
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(template.name)
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(.primary)
+                                    Text("\(Int(template.minWeeklyMileage))-\(Int(template.maxWeeklyMileage)) mi/wk · \(template.daysPerWeek) days · \(weekdayName(template.longRunWeekday)) long run")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .onDelete { offsets in
+                            viewModel.deleteTemplates(at: offsets)
+                        }
+                    } header: {
+                        Text("Saved Templates")
+                    } footer: {
+                        Text("Tap a template to apply its settings below")
+                    }
+                }
+
                 Section {
                     TextField("Plan Name (optional)", text: $viewModel.planName)
                         .textInputAutocapitalization(.words)
@@ -166,6 +206,26 @@ struct TrainingPlanSetupView: View {
                 }
 
                 Section {
+                    Picker("Long Run Day", selection: $viewModel.longRunWeekday) {
+                        ForEach(1...7, id: \.self) { weekday in
+                            Text(weekdayName(weekday)).tag(weekday)
+                        }
+                    }
+
+                    if viewModel.includeWorkouts {
+                        Picker("Quality Workout Day", selection: $viewModel.qualityWeekday) {
+                            ForEach(1...7, id: \.self) { weekday in
+                                Text(weekdayName(weekday)).tag(weekday)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Workout Days")
+                } footer: {
+                    Text("Choose which days of the week your long run and quality workout fall on")
+                }
+
+                Section {
                     Toggle(
                         "Allow Recovery-Based Adjustments",
                         isOn: $viewModel.allowRecoveryAdjustments
@@ -174,6 +234,17 @@ struct TrainingPlanSetupView: View {
                     Text("Adaptive Training")
                 } footer: {
                     Text("When enabled, the app will suggest workout modifications based on your daily recovery score")
+                }
+
+                Section {
+                    Button {
+                        newTemplateName = ""
+                        showSaveTemplateAlert = true
+                    } label: {
+                        Label("Save Current Settings as Template", systemImage: "square.and.arrow.down")
+                    }
+                } footer: {
+                    Text("Save your mileage, frequency, and workout-day preferences to reuse on future plans")
                 }
 
                 Section {
@@ -239,6 +310,19 @@ struct TrainingPlanSetupView: View {
             } message: {
                 Text("This will permanently delete your training plan and all linked workouts. This action cannot be undone.")
             }
+            .alert("Save Template", isPresented: $showSaveTemplateAlert) {
+                TextField("Template Name", text: $newTemplateName)
+                Button("Cancel", role: .cancel) { }
+                Button("Save") {
+                    let trimmedName = newTemplateName.trimmingCharacters(in: .whitespaces)
+                    guard !trimmedName.isEmpty else { return }
+                    withAnimation {
+                        viewModel.saveCurrentSettingsAsTemplate(name: trimmedName)
+                    }
+                }
+            } message: {
+                Text("Give this set of plan preferences a name so you can reuse it later")
+            }
             .onAppear {
                 loadExistingPlanData()
             }
@@ -261,6 +345,8 @@ struct TrainingPlanSetupView: View {
         viewModel.daysPerWeek = plan.daysPerWeek
         viewModel.allowRecoveryAdjustments = plan.allowRecoveryAdjustments
         viewModel.includeWorkouts = plan.includeWorkouts
+        viewModel.longRunWeekday = plan.longRunWeekday
+        viewModel.qualityWeekday = plan.qualityWeekday
 
         // Convert goal time back to hours/minutes/seconds
         let totalSeconds = Int(plan.goalTimeInSeconds)

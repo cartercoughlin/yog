@@ -18,10 +18,13 @@ struct TrainingPlanView: View {
                             .ignoresSafeArea()
                         emptyState
                     }
+                    .transition(.opacity)
                 } else {
                     planListView
+                        .transition(.opacity)
                 }
             }
+            .animation(.easeInOut(duration: 0.3), value: viewModel.trainingPlans.isEmpty)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -61,12 +64,15 @@ struct TrainingPlanView: View {
                 }
             }
             .onDelete { indexSet in
-                viewModel.deletePlans(at: indexSet)
+                withAnimation {
+                    viewModel.deletePlans(at: indexSet)
+                }
             }
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
         }
         .listStyle(.plain)
+        .animation(.easeInOut(duration: 0.25), value: viewModel.trainingPlans.map(\.id))
     }
 
     private var emptyState: some View {

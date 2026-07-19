@@ -241,8 +241,10 @@ struct WeekDetailView: View {
                 ForEach(week.workouts) { workout in
                     WorkoutCard(workout: workout, plan: plan)
                         .environmentObject(viewModel)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
+            .animation(.easeInOut(duration: 0.25), value: week.workouts.map(\.id))
         }
     }
 
@@ -559,6 +561,7 @@ struct WorkoutCard: View {
     @State private var showManualEntry = false
     @State private var showActionSheet = false
     @State private var showWorkoutDetail = false
+    @State private var showEditSheet = false
     @State private var newDate: Date
     @EnvironmentObject private var viewModel: TrainingPlanViewModel
 
@@ -604,8 +607,13 @@ struct WorkoutCard: View {
         return workout.type.rawValue
     }
 
-    // Calculate pace dynamically based on current pace calculation logic
+    // Calculate pace dynamically based on current pace calculation logic,
+    // unless the user has set a custom override for this workout
     private var calculatedPace: String? {
+        if let override = workout.customPaceOverride, !override.isEmpty {
+            return override
+        }
+
         guard workout.type != .rest else { return nil }
 
         let raceMiles = plan.raceDistance.meters / 1609.34
@@ -732,6 +740,8 @@ struct WorkoutCard: View {
 
     var body: some View {
         mainCardContent
+        .animation(.easeInOut(duration: 0.25), value: workout.isCompleted)
+        .animation(.easeInOut(duration: 0.25), value: workout.linkedWorkout?.id)
         .confirmationDialog("", isPresented: $showActionSheet) {
             Button("Link Workout") {
                 showLinkSheet = true
@@ -740,7 +750,9 @@ struct WorkoutCard: View {
                 showManualEntry = true
             }
             Button("Skip Workout") {
-                viewModel.skipWorkout(workoutId: workout.id)
+                withAnimation {
+                    viewModel.skipWorkout(workoutId: workout.id)
+                }
             }
         } message: {
             Text("How would you like to log this workout?")
@@ -790,7 +802,9 @@ struct WorkoutCard: View {
                         .buttonStyle(.bordered)
 
                         Button("Move Workout") {
-                            viewModel.moveWorkout(from: workout.id, toDay: newDate)
+                            withAnimation {
+                                viewModel.moveWorkout(from: workout.id, toDay: newDate)
+                            }
                             showDatePicker = false
                         }
                         .buttonStyle(.borderedProminent)
@@ -800,10 +814,20 @@ struct WorkoutCard: View {
                 .presentationDetents([.medium])
             }
         }
+        .sheet(isPresented: $showEditSheet) {
+            EditWorkoutSheet(workout: workout)
+                .environmentObject(viewModel)
+        }
         .onLongPressGesture {
             // Long press shows context menu options via sheet
         }
         .contextMenu {
+            Button {
+                showEditSheet = true
+            } label: {
+                Label("Edit Workout", systemImage: "pencil")
+            }
+
             Button {
                 showDatePicker = true
             } label: {
@@ -812,7 +836,9 @@ struct WorkoutCard: View {
 
             if workout.linkedWorkout != nil {
                 Button(role: .destructive) {
-                    viewModel.unlinkWorkoutFromDay(workoutId: workout.id)
+                    withAnimation {
+                        viewModel.unlinkWorkoutFromDay(workoutId: workout.id)
+                    }
                 } label: {
                     Label("Unlink Workout", systemImage: "link.badge.minus")
                 }
@@ -820,7 +846,9 @@ struct WorkoutCard: View {
 
             if isSkipped {
                 Button {
-                    viewModel.unskipWorkout(workoutId: workout.id)
+                    withAnimation {
+                        viewModel.unskipWorkout(workoutId: workout.id)
+                    }
                 } label: {
                     Label("Unskip Workout", systemImage: "arrow.uturn.backward")
                 }
@@ -828,7 +856,9 @@ struct WorkoutCard: View {
 
             if isCustomWorkout {
                 Button(role: .destructive) {
-                    viewModel.deleteWorkout(workoutId: workout.id)
+                    withAnimation {
+                        viewModel.deleteWorkout(workoutId: workout.id)
+                    }
                 } label: {
                     Label("Delete Workout", systemImage: "trash")
                 }
@@ -953,12 +983,14 @@ struct ManualMileageEntrySheet: View {
         guard let dist = Double(distance) else { return }
         let totalSeconds = Double(hours * 3600 + minutes * 60 + seconds)
 
-        viewModel.addManualWorkout(
-            workoutId: workout.id,
-            distance: dist,
-            duration: totalSeconds,
-            date: workout.date
-        )
+        withAnimation {
+            viewModel.addManualWorkout(
+                workoutId: workout.id,
+                distance: dist,
+                duration: totalSeconds,
+                date: workout.date
+            )
+        }
 
         dismiss()
     }
@@ -1098,14 +1130,118 @@ struct AddCustomWorkoutSheet: View {
         let totalSeconds = hours * 3600 + minutes * 60 + seconds
         let dist = Double(distance)
 
-        viewModel.addCustomWorkout(
-            toWeekNumber: week.weekNumber,
-            workoutType: selectedType,
-            description: description,
-            date: selectedDate,
-            distanceInMiles: dist,
-            durationInMinutes: totalSeconds / 60
-        )
+        withAnimation {
+            viewModel.addCustomWorkout(
+                toWeekNumber: week.weekNumber,
+                workoutType: selectedType,
+                description: description,
+                date: selectedDate,
+                distanceInMiles: dist,
+                durationInMinutes: totalSeconds / 60
+            )
+        }
+
+        dismiss()
+    }
+}
+
+// MARK: - Edit Workout Sheet
+
+struct EditWorkoutSheet: View {
+    let workout: DailyWorkout
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var viewModel: TrainingPlanViewModel
+
+    @State private var selectedType: TrainingWorkoutType
+    @State private var description: String
+    @State private var distanceText: String
+    @State private var durationMinutesText: String
+    @State private var customPace: String
+
+    init(workout: DailyWorkout) {
+        self.workout = workout
+        _selectedType = State(initialValue: workout.type)
+        _description = State(initialValue: workout.description)
+        _distanceText = State(initialValue: workout.distanceInMiles.map { String(format: "%.1f", $0) } ?? "")
+        _durationMinutesText = State(initialValue: workout.durationInMinutes.map { "\($0)" } ?? "")
+        _customPace = State(initialValue: workout.customPaceOverride ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Workout Type") {
+                    Picker("Type", selection: $selectedType) {
+                        ForEach(TrainingWorkoutType.allCases, id: \.self) { type in
+                            Text(type.rawValue).tag(type)
+                        }
+                    }
+                }
+
+                Section("Description") {
+                    TextField("Description", text: $description)
+                        .textInputAutocapitalization(.sentences)
+                }
+
+                Section("Distance & Duration") {
+                    HStack {
+                        Text("Distance (miles)")
+                        Spacer()
+                        TextField("Optional", text: $distanceText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 100)
+                    }
+
+                    HStack {
+                        Text("Duration (minutes)")
+                        Spacer()
+                        TextField("Optional", text: $durationMinutesText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 100)
+                    }
+                }
+
+                Section {
+                    TextField("e.g. 8:30", text: $customPace)
+                } header: {
+                    Text("Custom Pace Override")
+                } footer: {
+                    Text("Leave blank to use the automatically calculated pace for this workout type")
+                }
+            }
+            .navigationTitle("Edit Workout")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        saveChanges()
+                    }
+                }
+            }
+        }
+    }
+
+    private func saveChanges() {
+        let trimmedPace = customPace.trimmingCharacters(in: .whitespaces)
+
+        withAnimation {
+            viewModel.editWorkout(
+                workoutId: workout.id,
+                type: selectedType,
+                distanceInMiles: Double(distanceText),
+                durationInMinutes: Int(durationMinutesText),
+                description: description,
+                customPaceOverride: trimmedPace.isEmpty ? nil : trimmedPace
+            )
+        }
 
         dismiss()
     }

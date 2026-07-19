@@ -185,7 +185,9 @@ struct WorkoutLinkingSheet: View {
         // Add a small delay for visual feedback
         Task {
             try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
-            viewModel.linkWorkoutToDay(workoutId: workout.id, healthKitWorkout: workoutData)
+            withAnimation {
+                viewModel.linkWorkoutToDay(workoutId: workout.id, healthKitWorkout: workoutData)
+            }
 
             // Small additional delay before dismissing
             try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds

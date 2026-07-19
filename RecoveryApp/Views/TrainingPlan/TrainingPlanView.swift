@@ -18,10 +18,13 @@ struct TrainingPlanView: View {
                             .ignoresSafeArea()
                         emptyState
                     }
+                    .transition(.opacity)
                 } else {
                     planListView
+                        .transition(.opacity)
                 }
             }
+            .animation(.easeInOut(duration: 0.3), value: viewModel.trainingPlans.isEmpty)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -61,12 +64,15 @@ struct TrainingPlanView: View {
                 }
             }
             .onDelete { indexSet in
-                viewModel.deletePlans(at: indexSet)
+                withAnimation {
+                    viewModel.deletePlans(at: indexSet)
+                }
             }
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
         }
         .listStyle(.plain)
+        .animation(.easeInOut(duration: 0.25), value: viewModel.trainingPlans.map(\.id))
     }
 
     private var emptyState: some View {
@@ -189,6 +195,8 @@ struct SinglePlanView: View {
     @State private var selectedWeekNumber: String?
     @State private var showWeekDetail = false
     @State private var showSyncBanner = false
+    @State private var exportedFile: ExportedFile?
+    @State private var exportError: String?
 
     // HealthKit actual mileage per week
     @State private var weeklyActualMileage: [Int: Double] = [:]
@@ -221,6 +229,24 @@ struct SinglePlanView: View {
             }
 
             ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        exportPlan(as: .csv)
+                    } label: {
+                        Label("Export as CSV", systemImage: "tablecells")
+                    }
+
+                    Button {
+                        exportPlan(as: .pdf)
+                    } label: {
+                        Label("Export as PDF", systemImage: "doc.richtext")
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showSetup = true
                 } label: {
@@ -230,6 +256,17 @@ struct SinglePlanView: View {
         }
         .sheet(isPresented: $showSetup) {
             TrainingPlanSetupView(viewModel: viewModel)
+        }
+        .sheet(item: $exportedFile) { file in
+            ShareSheet(activityItems: [file.url])
+        }
+        .alert("Export Failed", isPresented: Binding(
+            get: { exportError != nil },
+            set: { if !$0 { exportError = nil } }
+        )) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(exportError ?? "Something went wrong while preparing the export.")
         }
         .sheet(isPresented: $showWeekDetail) {
             if let weekNumberStr = selectedWeekNumber,
@@ -616,6 +653,39 @@ struct SinglePlanView: View {
         case .transitionQuality: return .orange
         case .finalQuality: return .red
         }
+    }
+
+    // MARK: - Export
+
+    private enum ExportFormat {
+        case csv
+        case pdf
+    }
+
+    private func exportPlan(as format: ExportFormat) {
+        guard let currentPlan = viewModel.currentPlan, currentPlan.id == plan.id else { return }
+
+        let data: Data
+        let fileExtension: String
+        switch format {
+        case .csv:
+            data = TrainingPlanExporter.csvData(for: currentPlan)
+            fileExtension = "csv"
+        case .pdf:
+            data = TrainingPlanExporter.pdfData(for: currentPlan)
+            fileExtension = "pdf"
+        }
+
+        guard let url = TrainingPlanExporter.writeToTemporaryFile(
+            data: data,
+            planName: currentPlan.name,
+            fileExtension: fileExtension
+        ) else {
+            exportError = "Couldn't create the export file. Please try again."
+            return
+        }
+
+        exportedFile = ExportedFile(url: url)
     }
 }
 

@@ -29,20 +29,32 @@ class TrainingPlanViewModel: ObservableObject {
     @Published var daysPerWeek: Int = 6
     @Published var allowRecoveryAdjustments = true
     @Published var includeWorkouts = true  // Toggle for quality workouts vs long runs only
+    @Published var longRunWeekday: Int = 1  // Calendar weekday: 1 = Sunday ... 7 = Saturday
+    @Published var qualityWeekday: Int = 3  // Defaults to Tuesday
 
     // Recovery-based adjustment infrastructure
     @Published var lastRecoveryScore: Double?
     @Published var adjustmentSuggestion: String?
 
+    // Reusable plan-setup presets
+    @Published var planTemplates: [PlanTemplate] = [] {
+        didSet {
+            saveTemplates()
+        }
+    }
+
     private let healthKitManager = HealthKitManager()
     private let userDefaultsKey = "savedTrainingPlans"
     private let planVersionKey = "trainingPlanVersion"
     private let currentPlanVersion = 4  // Version 4: Dynamic weeks, workout toggle, half marathon 10mi cap
+    private let templatesKey = "savedPlanTemplates"
     private var isLoadingPlans = false
+    private var isLoadingTemplates = false
 
     init() {
         migrateIfNeeded()
         loadPlans()
+        loadTemplates()
     }
 
     // MARK: - Migration
@@ -50,11 +62,13 @@ class TrainingPlanViewModel: ObservableObject {
     private func migrateIfNeeded() {
         let savedVersion = UserDefaults.standard.integer(forKey: planVersionKey)
 
-        // If old version or no version, clear existing plans for fresh start
+        // Schema changes are handled by backward-compatible decoding in
+        // TrainingPlan's Codable conformance (decodeIfPresent with defaults),
+        // so bumping the version must never delete a tester's saved plans -
+        // that would wipe TestFlight users' data on every app update.
         if savedVersion < currentPlanVersion {
-            UserDefaults.standard.removeObject(forKey: userDefaultsKey)
             UserDefaults.standard.set(currentPlanVersion, forKey: planVersionKey)
-            print("🔄 Migrated training plans to version \(currentPlanVersion) - cleared old plans")
+            print("🔄 Training plan schema updated to version \(currentPlanVersion) - existing plans preserved")
         }
     }
 
@@ -139,7 +153,9 @@ class TrainingPlanViewModel: ObservableObject {
                 raceDistance: selectedDistance,
                 weekStartDate: weekStartDate,
                 daysPerWeek: daysPerWeek,
-                includeWorkouts: includeWorkouts
+                includeWorkouts: includeWorkouts,
+                longRunWeekday: longRunWeekday,
+                qualityWeekday: qualityWeekday
             )
 
             let isStepback = isStepbackWeek(weekNumber: weekNumber + 1, totalWeeks: actualWeeks)
@@ -176,6 +192,8 @@ class TrainingPlanViewModel: ObservableObject {
             vdot: vdot,
             allowRecoveryAdjustments: allowRecoveryAdjustments,
             includeWorkouts: includeWorkouts,
+            longRunWeekday: longRunWeekday,
+            qualityWeekday: qualityWeekday,
             createdDate: planCreatedDate
         )
 
@@ -276,7 +294,9 @@ class TrainingPlanViewModel: ObservableObject {
         raceDistance: RaceDistance,
         weekStartDate: Date,
         daysPerWeek: Int,
-        includeWorkouts: Bool
+        includeWorkouts: Bool,
+        longRunWeekday: Int,
+        qualityWeekday: Int
     ) -> [DailyWorkout] {
         var workouts: [DailyWorkout] = []
 
@@ -293,7 +313,7 @@ class TrainingPlanViewModel: ObservableObject {
         // Only generate quality days: Long Run + Quality Workout
         // HealthKit workouts will be pulled in automatically to show actual training
 
-        // Sunday (day 0): Long Run - Always included as quality day
+        // Long Run - Always included as quality day, on the user's chosen weekday
         let longRunDescription = generateLongRunDescription(
             phase: phase,
             weekNumber: weekNumber,
@@ -302,7 +322,7 @@ class TrainingPlanViewModel: ObservableObject {
             isStepback: isStepback
         )
         workouts.append(createWorkout(
-            date: addDays(to: weekStartDate, days: 0),
+            date: addDays(to: weekStartDate, days: dayOffset(forWeekday: longRunWeekday, from: weekStartDate)),
             type: .long,
             distance: longRunDistance,
             goalRacePaceSecPerMile: goalRacePaceSecPerMile,
@@ -310,7 +330,7 @@ class TrainingPlanViewModel: ObservableObject {
             description: longRunDescription
         ))
 
-        // Tuesday (day 2): Quality workout (only if includeWorkouts is enabled)
+        // Quality workout, on the user's chosen weekday (only if includeWorkouts is enabled)
         // - Not if workouts are disabled
         // - Not in foundation phase
         // - Not during final taper (last 2 weeks or ~12.5% of plan)
@@ -325,18 +345,30 @@ class TrainingPlanViewModel: ObservableObject {
         let isFoundationPhase = weekNumber <= foundationWeeks
 
         if !isTaperWeek && !isStepback && !isFoundationPhase {
-            let tuesdayWorkout = generateTuesdayQuality(
+            let qualityWorkout = generateTuesdayQuality(
                 phase: phase,
                 weekNumber: weekNumber,
                 weekStartDate: weekStartDate,
                 goalRacePaceSecPerMile: goalRacePaceSecPerMile,
                 raceDistance: raceDistance,
-                isStepback: isStepback
+                isStepback: isStepback,
+                qualityWeekday: qualityWeekday
             )
-            workouts.append(tuesdayWorkout)
+            workouts.append(qualityWorkout)
         }
 
         return workouts.sorted { $0.date < $1.date }
+    }
+
+    // MARK: - Weekday Helpers
+
+    /// Number of days to add to `startDate` to land on the given calendar
+    /// weekday (1 = Sunday ... 7 = Saturday), assuming `startDate` falls
+    /// within the same week.
+    private func dayOffset(forWeekday weekday: Int, from startDate: Date) -> Int {
+        let calendar = Calendar.current
+        let startWeekday = calendar.component(.weekday, from: startDate)
+        return (weekday - startWeekday + 7) % 7
     }
 
     // MARK: - Day-Specific Quality Workouts
@@ -347,12 +379,15 @@ class TrainingPlanViewModel: ObservableObject {
         weekStartDate: Date,
         goalRacePaceSecPerMile: Double,
         raceDistance: RaceDistance,
-        isStepback: Bool
+        isStepback: Bool,
+        qualityWeekday: Int
     ) -> DailyWorkout {
+        let workoutDate = addDays(to: weekStartDate, days: dayOffset(forWeekday: qualityWeekday, from: weekStartDate))
+
         // On stepback weeks, reduce intensity
         if isStepback {
             return createWorkout(
-                date: addDays(to: weekStartDate, days: 2),
+                date: workoutDate,
                 type: .easy,
                 distance: 5,
                 durationMinutes: 50,
@@ -366,7 +401,7 @@ class TrainingPlanViewModel: ObservableObject {
         case .foundation:
             // Foundation phase: easy run only, no quality workouts
             return createWorkout(
-                date: addDays(to: weekStartDate, days: 2),
+                date: workoutDate,
                 type: .easy,
                 distance: 6,
                 durationMinutes: 55,
@@ -379,7 +414,7 @@ class TrainingPlanViewModel: ObservableObject {
             // Early quality: Repetition work (400m repeats)
             let reps = min(12, 8 + (weekNumber / 2))
             return createWorkout(
-                date: addDays(to: weekStartDate, days: 2),
+                date: workoutDate,
                 type: .repetition,
                 distance: 7,
                 goalRacePaceSecPerMile: goalRacePaceSecPerMile,
@@ -390,7 +425,7 @@ class TrainingPlanViewModel: ObservableObject {
         case .transitionQuality:
             // Transition: Interval work (800m-1000m)
             return createWorkout(
-                date: addDays(to: weekStartDate, days: 2),
+                date: workoutDate,
                 type: .interval,
                 distance: 8,
                 goalRacePaceSecPerMile: goalRacePaceSecPerMile,
@@ -402,7 +437,7 @@ class TrainingPlanViewModel: ObservableObject {
             // Final quality: Race-specific work
             if raceDistance == .marathon {
                 return createWorkout(
-                    date: addDays(to: weekStartDate, days: 2),
+                    date: workoutDate,
                     type: .marathon,
                     distance: 10,
                     goalRacePaceSecPerMile: goalRacePaceSecPerMile,
@@ -411,7 +446,7 @@ class TrainingPlanViewModel: ObservableObject {
                 )
             } else {
                 return createWorkout(
-                    date: addDays(to: weekStartDate, days: 2),
+                    date: workoutDate,
                     type: .interval,
                     distance: 8,
                     goalRacePaceSecPerMile: goalRacePaceSecPerMile,
@@ -608,356 +643,190 @@ class TrainingPlanViewModel: ObservableObject {
 
     // MARK: - Workout Linking
 
-    func linkWorkoutToDay(workoutId: UUID, healthKitWorkout: WorkoutData) {
-        guard var plan = currentPlan else { return }
+    /// Applies `transform` to the workout matching `workoutId` and persists the
+    /// resulting plan into both `currentPlan` and `trainingPlans`.
+    private func updateWorkout(workoutId: UUID, transform: (DailyWorkout) -> DailyWorkout) {
+        guard let plan = currentPlan else { return }
 
-        // Find the workout day
         var updatedWeeks = plan.weeks
         for (weekIndex, week) in updatedWeeks.enumerated() {
-            for (workoutIndex, workout) in week.workouts.enumerated() {
-                if workout.id == workoutId {
-                    // Calculate actual pace (only for distance-based workouts)
-                    let distanceMiles: Double
-                    let paceString: String
+            guard let workoutIndex = week.workouts.firstIndex(where: { $0.id == workoutId }) else { continue }
 
-                    if let distance = healthKitWorkout.distance, distance > 0 {
-                        distanceMiles = distance / 1609.34
-                        let paceSecPerMile = healthKitWorkout.duration / distanceMiles
-                        let paceMin = Int(paceSecPerMile / 60)
-                        let paceSec = Int(paceSecPerMile.truncatingRemainder(dividingBy: 60))
-                        paceString = String(format: "%d:%02d", paceMin, paceSec)
-                    } else {
-                        // Strength training or other non-distance workouts
-                        distanceMiles = 0
-                        paceString = "N/A"
-                    }
+            var updatedWorkouts = week.workouts
+            updatedWorkouts[workoutIndex] = transform(updatedWorkouts[workoutIndex])
+            updatedWorkouts.sort { $0.date < $1.date }
 
-                    let linkedWorkout = LinkedWorkout(
-                        id: UUID(),
-                        workoutId: healthKitWorkout.id.uuidString,
-                        actualDistance: distanceMiles,
-                        actualDuration: healthKitWorkout.duration,
-                        actualPace: paceString,
-                        completedDate: healthKitWorkout.date
-                    )
+            updatedWeeks[weekIndex] = week.withWorkouts(updatedWorkouts)
 
-                    // Create updated workout
-                    let updatedWorkout = DailyWorkout(
-                        id: workout.id,
-                        date: workout.date,
-                        type: workout.type,
-                        distanceInMiles: workout.distanceInMiles,
-                        durationInMinutes: workout.durationInMinutes,
-                        paceMinPerMile: workout.paceMinPerMile,
-                        description: workout.description,
-                        isCompleted: true,
-                        linkedWorkout: linkedWorkout
-                    )
-
-                    // Update the workout in the week
-                    var updatedWorkouts = week.workouts
-                    updatedWorkouts[workoutIndex] = updatedWorkout
-
-                    // Update the week
-                    updatedWeeks[weekIndex] = WeeklyPlan(
-                        id: week.id,
-                        weekNumber: week.weekNumber,
-                        phase: week.phase,
-                        workouts: updatedWorkouts,
-                        startDate: week.startDate,
-                        isStepbackWeek: week.isStepbackWeek,
-                        recommendedMileage: week.recommendedMileage
-                    )
-
-                    // Update the plan
-                    let updatedPlan = TrainingPlan(
-                        id: plan.id,
-                        name: plan.name,
-                        raceDistance: plan.raceDistance,
-                        raceDate: plan.raceDate,
-                        goalTimeInSeconds: plan.goalTimeInSeconds,
-                        minWeeklyMileage: plan.minWeeklyMileage,
-                        maxWeeklyMileage: plan.maxWeeklyMileage,
-                        daysPerWeek: plan.daysPerWeek,
-                        weeks: updatedWeeks,
-                        vdot: plan.vdot,
-                        allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
-                        includeWorkouts: plan.includeWorkouts,
-                        createdDate: plan.createdDate
-                    )
-
-                    // Update in both currentPlan and trainingPlans array
-                    currentPlan = updatedPlan
-                    if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
-                        trainingPlans[planIndex] = updatedPlan
-                    }
-                    return
-                }
+            let updatedPlan = plan.withWeeks(updatedWeeks)
+            currentPlan = updatedPlan
+            if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
+                trainingPlans[planIndex] = updatedPlan
             }
+            return
+        }
+    }
+
+    func linkWorkoutToDay(workoutId: UUID, healthKitWorkout: WorkoutData) {
+        // Calculate actual pace (only for distance-based workouts)
+        let distanceMiles: Double
+        let paceString: String
+
+        if let distance = healthKitWorkout.distance, distance > 0 {
+            distanceMiles = distance / 1609.34
+            let paceSecPerMile = healthKitWorkout.duration / distanceMiles
+            let paceMin = Int(paceSecPerMile / 60)
+            let paceSec = Int(paceSecPerMile.truncatingRemainder(dividingBy: 60))
+            paceString = String(format: "%d:%02d", paceMin, paceSec)
+        } else {
+            // Strength training or other non-distance workouts
+            distanceMiles = 0
+            paceString = "N/A"
+        }
+
+        let linkedWorkout = LinkedWorkout(
+            id: UUID(),
+            workoutId: healthKitWorkout.id.uuidString,
+            actualDistance: distanceMiles,
+            actualDuration: healthKitWorkout.duration,
+            actualPace: paceString,
+            completedDate: healthKitWorkout.date
+        )
+
+        updateWorkout(workoutId: workoutId) { workout in
+            DailyWorkout(
+                id: workout.id,
+                date: workout.date,
+                type: workout.type,
+                distanceInMiles: workout.distanceInMiles,
+                durationInMinutes: workout.durationInMinutes,
+                paceMinPerMile: workout.paceMinPerMile,
+                description: workout.description,
+                isCompleted: true,
+                linkedWorkout: linkedWorkout,
+                customPaceOverride: workout.customPaceOverride
+            )
         }
     }
 
     func unlinkWorkoutFromDay(workoutId: UUID) {
-        guard var plan = currentPlan else { return }
-
-        var updatedWeeks = plan.weeks
-        for (weekIndex, week) in updatedWeeks.enumerated() {
-            for (workoutIndex, workout) in week.workouts.enumerated() {
-                if workout.id == workoutId {
-                    // Create updated workout without link
-                    let updatedWorkout = DailyWorkout(
-                        id: workout.id,
-                        date: workout.date,
-                        type: workout.type,
-                        distanceInMiles: workout.distanceInMiles,
-                        durationInMinutes: workout.durationInMinutes,
-                        paceMinPerMile: workout.paceMinPerMile,
-                        description: workout.description,
-                        isCompleted: false,
-                        linkedWorkout: nil
-                    )
-
-                    var updatedWorkouts = week.workouts
-                    updatedWorkouts[workoutIndex] = updatedWorkout
-
-                    updatedWeeks[weekIndex] = WeeklyPlan(
-                        id: week.id,
-                        weekNumber: week.weekNumber,
-                        phase: week.phase,
-                        workouts: updatedWorkouts,
-                        startDate: week.startDate,
-                        isStepbackWeek: week.isStepbackWeek,
-                        recommendedMileage: week.recommendedMileage
-                    )
-
-                    let updatedPlan = TrainingPlan(
-                        id: plan.id,
-                        name: plan.name,
-                        raceDistance: plan.raceDistance,
-                        raceDate: plan.raceDate,
-                        goalTimeInSeconds: plan.goalTimeInSeconds,
-                        minWeeklyMileage: plan.minWeeklyMileage,
-                        maxWeeklyMileage: plan.maxWeeklyMileage,
-                        daysPerWeek: plan.daysPerWeek,
-                        weeks: updatedWeeks,
-                        vdot: plan.vdot,
-                        allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
-                        includeWorkouts: plan.includeWorkouts,
-                        createdDate: plan.createdDate
-                    )
-
-                    // Update in both currentPlan and trainingPlans array
-                    currentPlan = updatedPlan
-                    if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
-                        trainingPlans[planIndex] = updatedPlan
-                    }
-                    return
-                }
-            }
+        updateWorkout(workoutId: workoutId) { workout in
+            DailyWorkout(
+                id: workout.id,
+                date: workout.date,
+                type: workout.type,
+                distanceInMiles: workout.distanceInMiles,
+                durationInMinutes: workout.durationInMinutes,
+                paceMinPerMile: workout.paceMinPerMile,
+                description: workout.description,
+                isCompleted: false,
+                linkedWorkout: nil,
+                customPaceOverride: workout.customPaceOverride
+            )
         }
     }
 
     func skipWorkout(workoutId: UUID) {
-        guard var plan = currentPlan else { return }
-
-        var updatedWeeks = plan.weeks
-        for (weekIndex, week) in updatedWeeks.enumerated() {
-            for (workoutIndex, workout) in week.workouts.enumerated() {
-                if workout.id == workoutId {
-                    // Mark workout as completed but with no linked workout data
-                    let updatedWorkout = DailyWorkout(
-                        id: workout.id,
-                        date: workout.date,
-                        type: workout.type,
-                        distanceInMiles: workout.distanceInMiles,
-                        durationInMinutes: workout.durationInMinutes,
-                        paceMinPerMile: workout.paceMinPerMile,
-                        description: workout.description + " (Skipped)",
-                        isCompleted: true,
-                        linkedWorkout: nil
-                    )
-
-                    var updatedWorkouts = week.workouts
-                    updatedWorkouts[workoutIndex] = updatedWorkout
-
-                    updatedWeeks[weekIndex] = WeeklyPlan(
-                        id: week.id,
-                        weekNumber: week.weekNumber,
-                        phase: week.phase,
-                        workouts: updatedWorkouts,
-                        startDate: week.startDate,
-                        isStepbackWeek: week.isStepbackWeek,
-                        recommendedMileage: week.recommendedMileage
-                    )
-
-                    let updatedPlan = TrainingPlan(
-                        id: plan.id,
-                        name: plan.name,
-                        raceDistance: plan.raceDistance,
-                        raceDate: plan.raceDate,
-                        goalTimeInSeconds: plan.goalTimeInSeconds,
-                        minWeeklyMileage: plan.minWeeklyMileage,
-                        maxWeeklyMileage: plan.maxWeeklyMileage,
-                        daysPerWeek: plan.daysPerWeek,
-                        weeks: updatedWeeks,
-                        vdot: plan.vdot,
-                        allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
-                        includeWorkouts: plan.includeWorkouts,
-                        createdDate: plan.createdDate
-                    )
-
-                    currentPlan = updatedPlan
-                    if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
-                        trainingPlans[planIndex] = updatedPlan
-                    }
-                    return
-                }
-            }
+        updateWorkout(workoutId: workoutId) { workout in
+            DailyWorkout(
+                id: workout.id,
+                date: workout.date,
+                type: workout.type,
+                distanceInMiles: workout.distanceInMiles,
+                durationInMinutes: workout.durationInMinutes,
+                paceMinPerMile: workout.paceMinPerMile,
+                description: workout.description + " (Skipped)",
+                isCompleted: true,
+                linkedWorkout: nil,
+                customPaceOverride: workout.customPaceOverride
+            )
         }
     }
 
     func unskipWorkout(workoutId: UUID) {
-        guard var plan = currentPlan else { return }
-
-        var updatedWeeks = plan.weeks
-        for (weekIndex, week) in updatedWeeks.enumerated() {
-            for (workoutIndex, workout) in week.workouts.enumerated() {
-                if workout.id == workoutId {
-                    // Remove "(Skipped)" from description and mark as incomplete
-                    let cleanedDescription = workout.description.replacingOccurrences(of: " (Skipped)", with: "")
-
-                    let updatedWorkout = DailyWorkout(
-                        id: workout.id,
-                        date: workout.date,
-                        type: workout.type,
-                        distanceInMiles: workout.distanceInMiles,
-                        durationInMinutes: workout.durationInMinutes,
-                        paceMinPerMile: workout.paceMinPerMile,
-                        description: cleanedDescription,
-                        isCompleted: false,
-                        linkedWorkout: nil
-                    )
-
-                    var updatedWorkouts = week.workouts
-                    updatedWorkouts[workoutIndex] = updatedWorkout
-
-                    updatedWeeks[weekIndex] = WeeklyPlan(
-                        id: week.id,
-                        weekNumber: week.weekNumber,
-                        phase: week.phase,
-                        workouts: updatedWorkouts,
-                        startDate: week.startDate,
-                        isStepbackWeek: week.isStepbackWeek,
-                        recommendedMileage: week.recommendedMileage
-                    )
-
-                    let updatedPlan = TrainingPlan(
-                        id: plan.id,
-                        name: plan.name,
-                        raceDistance: plan.raceDistance,
-                        raceDate: plan.raceDate,
-                        goalTimeInSeconds: plan.goalTimeInSeconds,
-                        minWeeklyMileage: plan.minWeeklyMileage,
-                        maxWeeklyMileage: plan.maxWeeklyMileage,
-                        daysPerWeek: plan.daysPerWeek,
-                        weeks: updatedWeeks,
-                        vdot: plan.vdot,
-                        allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
-                        includeWorkouts: plan.includeWorkouts,
-                        createdDate: plan.createdDate
-                    )
-
-                    currentPlan = updatedPlan
-                    if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
-                        trainingPlans[planIndex] = updatedPlan
-                    }
-                    return
-                }
-            }
+        updateWorkout(workoutId: workoutId) { workout in
+            let cleanedDescription = workout.description.replacingOccurrences(of: " (Skipped)", with: "")
+            return DailyWorkout(
+                id: workout.id,
+                date: workout.date,
+                type: workout.type,
+                distanceInMiles: workout.distanceInMiles,
+                durationInMinutes: workout.durationInMinutes,
+                paceMinPerMile: workout.paceMinPerMile,
+                description: cleanedDescription,
+                isCompleted: false,
+                linkedWorkout: nil,
+                customPaceOverride: workout.customPaceOverride
+            )
         }
     }
 
     func addManualWorkout(workoutId: UUID, distance: Double, duration: TimeInterval, date: Date) {
-        guard var plan = currentPlan else { return }
+        // Calculate pace (only for distance-based workouts)
+        let paceString: String
+        if distance > 0 {
+            let paceSecPerMile = duration / distance
+            let paceMin = Int(paceSecPerMile / 60)
+            let paceSec = Int(paceSecPerMile.truncatingRemainder(dividingBy: 60))
+            paceString = String(format: "%d:%02d", paceMin, paceSec)
+        } else {
+            // Strength training or other non-distance workouts
+            paceString = "N/A"
+        }
 
-        var updatedWeeks = plan.weeks
-        for (weekIndex, week) in updatedWeeks.enumerated() {
-            for (workoutIndex, workout) in week.workouts.enumerated() {
-                if workout.id == workoutId {
-                    // Calculate pace (only for distance-based workouts)
-                    let paceString: String
-                    if distance > 0 {
-                        let paceSecPerMile = duration / distance
-                        let paceMin = Int(paceSecPerMile / 60)
-                        let paceSec = Int(paceSecPerMile.truncatingRemainder(dividingBy: 60))
-                        paceString = String(format: "%d:%02d", paceMin, paceSec)
-                    } else {
-                        // Strength training or other non-distance workouts
-                        paceString = "N/A"
-                    }
+        let linkedWorkout = LinkedWorkout(
+            id: UUID(),
+            workoutId: "manual-\(UUID().uuidString)",
+            actualDistance: distance,
+            actualDuration: duration,
+            actualPace: paceString,
+            completedDate: date
+        )
 
-                    let linkedWorkout = LinkedWorkout(
-                        id: UUID(),
-                        workoutId: "manual-\(UUID().uuidString)",
-                        actualDistance: distance,
-                        actualDuration: duration,
-                        actualPace: paceString,
-                        completedDate: date
-                    )
+        updateWorkout(workoutId: workoutId) { workout in
+            DailyWorkout(
+                id: workout.id,
+                date: workout.date,
+                type: workout.type,
+                distanceInMiles: workout.distanceInMiles,
+                durationInMinutes: workout.durationInMinutes,
+                paceMinPerMile: workout.paceMinPerMile,
+                description: workout.description,
+                isCompleted: true,
+                linkedWorkout: linkedWorkout,
+                customPaceOverride: workout.customPaceOverride
+            )
+        }
+    }
 
-                    let updatedWorkout = DailyWorkout(
-                        id: workout.id,
-                        date: workout.date,
-                        type: workout.type,
-                        distanceInMiles: workout.distanceInMiles,
-                        durationInMinutes: workout.durationInMinutes,
-                        paceMinPerMile: workout.paceMinPerMile,
-                        description: workout.description,
-                        isCompleted: true,
-                        linkedWorkout: linkedWorkout
-                    )
-
-                    var updatedWorkouts = week.workouts
-                    updatedWorkouts[workoutIndex] = updatedWorkout
-
-                    updatedWeeks[weekIndex] = WeeklyPlan(
-                        id: week.id,
-                        weekNumber: week.weekNumber,
-                        phase: week.phase,
-                        workouts: updatedWorkouts,
-                        startDate: week.startDate,
-                        isStepbackWeek: week.isStepbackWeek,
-                        recommendedMileage: week.recommendedMileage
-                    )
-
-                    let updatedPlan = TrainingPlan(
-                        id: plan.id,
-                        name: plan.name,
-                        raceDistance: plan.raceDistance,
-                        raceDate: plan.raceDate,
-                        goalTimeInSeconds: plan.goalTimeInSeconds,
-                        minWeeklyMileage: plan.minWeeklyMileage,
-                        maxWeeklyMileage: plan.maxWeeklyMileage,
-                        daysPerWeek: plan.daysPerWeek,
-                        weeks: updatedWeeks,
-                        vdot: plan.vdot,
-                        allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
-                        includeWorkouts: plan.includeWorkouts,
-                        createdDate: plan.createdDate
-                    )
-
-                    currentPlan = updatedPlan
-                    if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
-                        trainingPlans[planIndex] = updatedPlan
-                    }
-                    return
-                }
-            }
+    /// Lets the user override a workout's type, distance, duration,
+    /// description, and pace after the plan has already been generated.
+    func editWorkout(
+        workoutId: UUID,
+        type: TrainingWorkoutType,
+        distanceInMiles: Double?,
+        durationInMinutes: Int?,
+        description: String,
+        customPaceOverride: String?
+    ) {
+        updateWorkout(workoutId: workoutId) { workout in
+            DailyWorkout(
+                id: workout.id,
+                date: workout.date,
+                type: type,
+                distanceInMiles: distanceInMiles,
+                durationInMinutes: durationInMinutes,
+                paceMinPerMile: workout.paceMinPerMile,
+                description: description,
+                isCompleted: workout.isCompleted,
+                linkedWorkout: workout.linkedWorkout,
+                customPaceOverride: customPaceOverride
+            )
         }
     }
 
     func addCustomWorkout(toWeekNumber weekNumber: Int, workoutType: WorkoutType, description: String, date: Date, distanceInMiles: Double? = nil, durationInMinutes: Int? = nil) {
-        guard var plan = currentPlan else { return }
+        guard let plan = currentPlan else { return }
 
         var updatedWeeks = plan.weeks
         guard let weekIndex = updatedWeeks.firstIndex(where: { $0.weekNumber == weekNumber }) else { return }
@@ -988,32 +857,9 @@ class TrainingPlanViewModel: ObservableObject {
         updatedWorkouts.append(newWorkout)
         updatedWorkouts.sort { $0.date < $1.date }
 
-        updatedWeeks[weekIndex] = WeeklyPlan(
-            id: week.id,
-            weekNumber: week.weekNumber,
-            phase: week.phase,
-            workouts: updatedWorkouts,
-            startDate: week.startDate,
-            isStepbackWeek: week.isStepbackWeek,
-            recommendedMileage: week.recommendedMileage
-        )
+        updatedWeeks[weekIndex] = week.withWorkouts(updatedWorkouts)
 
-        let updatedPlan = TrainingPlan(
-            id: plan.id,
-            name: plan.name,
-            raceDistance: plan.raceDistance,
-            raceDate: plan.raceDate,
-            goalTimeInSeconds: plan.goalTimeInSeconds,
-            minWeeklyMileage: plan.minWeeklyMileage,
-            maxWeeklyMileage: plan.maxWeeklyMileage,
-            daysPerWeek: plan.daysPerWeek,
-            weeks: updatedWeeks,
-            vdot: plan.vdot,
-            allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
-            includeWorkouts: plan.includeWorkouts,
-            createdDate: plan.createdDate
-        )
-
+        let updatedPlan = plan.withWeeks(updatedWeeks)
         currentPlan = updatedPlan
         if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
             trainingPlans[planIndex] = updatedPlan
@@ -1021,108 +867,41 @@ class TrainingPlanViewModel: ObservableObject {
     }
 
     func deleteWorkout(workoutId: UUID) {
-        guard var plan = currentPlan else { return }
+        guard let plan = currentPlan else { return }
 
         var updatedWeeks = plan.weeks
         for (weekIndex, week) in updatedWeeks.enumerated() {
-            if let workoutIndex = week.workouts.firstIndex(where: { $0.id == workoutId }) {
-                var updatedWorkouts = week.workouts
-                updatedWorkouts.remove(at: workoutIndex)
+            guard let workoutIndex = week.workouts.firstIndex(where: { $0.id == workoutId }) else { continue }
 
-                updatedWeeks[weekIndex] = WeeklyPlan(
-                    id: week.id,
-                    weekNumber: week.weekNumber,
-                    phase: week.phase,
-                    workouts: updatedWorkouts,
-                    startDate: week.startDate,
-                    isStepbackWeek: week.isStepbackWeek,
-                    recommendedMileage: week.recommendedMileage
-                )
+            var updatedWorkouts = week.workouts
+            updatedWorkouts.remove(at: workoutIndex)
+            updatedWeeks[weekIndex] = week.withWorkouts(updatedWorkouts)
 
-                let updatedPlan = TrainingPlan(
-                    id: plan.id,
-                    name: plan.name,
-                    raceDistance: plan.raceDistance,
-                    raceDate: plan.raceDate,
-                    goalTimeInSeconds: plan.goalTimeInSeconds,
-                    minWeeklyMileage: plan.minWeeklyMileage,
-                    maxWeeklyMileage: plan.maxWeeklyMileage,
-                    daysPerWeek: plan.daysPerWeek,
-                    weeks: updatedWeeks,
-                    vdot: plan.vdot,
-                    allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
-                    includeWorkouts: plan.includeWorkouts,
-                    createdDate: plan.createdDate
-                )
-
-                currentPlan = updatedPlan
-                if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
-                    trainingPlans[planIndex] = updatedPlan
-                }
-                return
+            let updatedPlan = plan.withWeeks(updatedWeeks)
+            currentPlan = updatedPlan
+            if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
+                trainingPlans[planIndex] = updatedPlan
             }
+            return
         }
     }
 
     // MARK: - Workout Day Editing
 
     func moveWorkout(from workoutId: UUID, toDay newDate: Date) {
-        guard var plan = currentPlan else { return }
-
-        var updatedWeeks = plan.weeks
-        for (weekIndex, week) in updatedWeeks.enumerated() {
-            for (workoutIndex, workout) in week.workouts.enumerated() {
-                if workout.id == workoutId {
-                    // Create updated workout with new date
-                    let updatedWorkout = DailyWorkout(
-                        id: workout.id,
-                        date: newDate,
-                        type: workout.type,
-                        distanceInMiles: workout.distanceInMiles,
-                        durationInMinutes: workout.durationInMinutes,
-                        paceMinPerMile: workout.paceMinPerMile,
-                        description: workout.description,
-                        isCompleted: workout.isCompleted,
-                        linkedWorkout: workout.linkedWorkout
-                    )
-
-                    var updatedWorkouts = week.workouts
-                    updatedWorkouts[workoutIndex] = updatedWorkout
-
-                    updatedWeeks[weekIndex] = WeeklyPlan(
-                        id: week.id,
-                        weekNumber: week.weekNumber,
-                        phase: week.phase,
-                        workouts: updatedWorkouts.sorted { $0.date < $1.date },
-                        startDate: week.startDate,
-                        isStepbackWeek: week.isStepbackWeek,
-                        recommendedMileage: week.recommendedMileage
-                    )
-
-                    let updatedPlan = TrainingPlan(
-                        id: plan.id,
-                        name: plan.name,
-                        raceDistance: plan.raceDistance,
-                        raceDate: plan.raceDate,
-                        goalTimeInSeconds: plan.goalTimeInSeconds,
-                        minWeeklyMileage: plan.minWeeklyMileage,
-                        maxWeeklyMileage: plan.maxWeeklyMileage,
-                        daysPerWeek: plan.daysPerWeek,
-                        weeks: updatedWeeks,
-                        vdot: plan.vdot,
-                        allowRecoveryAdjustments: plan.allowRecoveryAdjustments,
-                        includeWorkouts: plan.includeWorkouts,
-                        createdDate: plan.createdDate
-                    )
-
-                    // Update in both currentPlan and trainingPlans array
-                    currentPlan = updatedPlan
-                    if let planIndex = trainingPlans.firstIndex(where: { $0.id == plan.id }) {
-                        trainingPlans[planIndex] = updatedPlan
-                    }
-                    return
-                }
-            }
+        updateWorkout(workoutId: workoutId) { workout in
+            DailyWorkout(
+                id: workout.id,
+                date: newDate,
+                type: workout.type,
+                distanceInMiles: workout.distanceInMiles,
+                durationInMinutes: workout.durationInMinutes,
+                paceMinPerMile: workout.paceMinPerMile,
+                description: workout.description,
+                isCompleted: workout.isCompleted,
+                linkedWorkout: workout.linkedWorkout,
+                customPaceOverride: workout.customPaceOverride
+            )
         }
     }
 
@@ -1163,6 +942,63 @@ class TrainingPlanViewModel: ObservableObject {
             print("❌ Failed to load training plans: \(error)")
             // Clean up corrupted data
             UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+        }
+    }
+
+    // MARK: - Plan Templates
+
+    func saveCurrentSettingsAsTemplate(name: String) {
+        let template = PlanTemplate(
+            name: name,
+            currentWeeklyMileage: currentWeeklyMileage,
+            minWeeklyMileage: minWeeklyMileage,
+            maxWeeklyMileage: maxWeeklyMileage,
+            daysPerWeek: daysPerWeek,
+            includeWorkouts: includeWorkouts,
+            allowRecoveryAdjustments: allowRecoveryAdjustments,
+            longRunWeekday: longRunWeekday,
+            qualityWeekday: qualityWeekday
+        )
+        planTemplates.append(template)
+    }
+
+    func applyTemplate(_ template: PlanTemplate) {
+        currentWeeklyMileage = template.currentWeeklyMileage
+        minWeeklyMileage = template.minWeeklyMileage
+        maxWeeklyMileage = template.maxWeeklyMileage
+        daysPerWeek = template.daysPerWeek
+        includeWorkouts = template.includeWorkouts
+        allowRecoveryAdjustments = template.allowRecoveryAdjustments
+        longRunWeekday = template.longRunWeekday
+        qualityWeekday = template.qualityWeekday
+    }
+
+    func deleteTemplates(at offsets: IndexSet) {
+        planTemplates.remove(atOffsets: offsets)
+    }
+
+    private func saveTemplates() {
+        guard !isLoadingTemplates else { return }
+
+        do {
+            let data = try JSONEncoder().encode(planTemplates)
+            UserDefaults.standard.set(data, forKey: templatesKey)
+        } catch {
+            print("❌ Failed to save plan templates: \(error)")
+        }
+    }
+
+    private func loadTemplates() {
+        guard let data = UserDefaults.standard.data(forKey: templatesKey) else { return }
+
+        do {
+            isLoadingTemplates = true
+            planTemplates = try JSONDecoder().decode([PlanTemplate].self, from: data)
+            isLoadingTemplates = false
+        } catch {
+            isLoadingTemplates = false
+            print("❌ Failed to load plan templates: \(error)")
+            UserDefaults.standard.removeObject(forKey: templatesKey)
         }
     }
 }

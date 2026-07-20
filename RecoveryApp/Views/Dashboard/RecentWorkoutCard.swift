@@ -46,14 +46,14 @@ struct RecentWorkoutCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Image(systemName: workoutIcon)
-                    .font(.title2)
+                    .font(.body)
                     .foregroundStyle(workoutColor)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Most Recent Workout")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Recent Activities")
                         .font(.headline)
                     Text(dateFormatter.string(from: workout.date))
                         .font(.caption)
@@ -70,8 +70,6 @@ struct RecentWorkoutCard: View {
                         .foregroundStyle(.secondary)
                 }
             }
-
-            Divider()
 
             HStack(spacing: 20) {
                 if let distance = workout.distance {
@@ -104,7 +102,7 @@ struct RecentWorkoutCard: View {
                 }
             }
         }
-        .padding()
+        .padding(14)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
@@ -134,14 +132,10 @@ struct WorkoutStat: View {
     let color: Color
 
     var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.caption)
-                .foregroundStyle(color)
-
+        VStack(spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(value)
-                    .font(.title3)
+                    .font(.subheadline.monospacedDigit())
                     .fontWeight(.semibold)
 
                 if !unit.isEmpty {

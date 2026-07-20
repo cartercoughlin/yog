@@ -130,6 +130,16 @@ struct MetricDetailView: View {
                         )
                         .interpolationMethod(.catmullRom)
 
+                        // Keep sparse series visible. A LineMark has no
+                        // visible segment when HealthKit provides only one
+                        // resting-HR value in the selected range.
+                        PointMark(
+                            x: .value("Date", point.date),
+                            y: .value(metricType.chartYAxisLabel, point.value)
+                        )
+                        .foregroundStyle(metricType.color)
+                        .symbolSize(35)
+
                         // Show point marker for selected date
                         if let selectedDate = selectedDate, Calendar.current.isDate(point.date, inSameDayAs: selectedDate) {
                             PointMark(

@@ -31,7 +31,15 @@ class MetricDetailViewModel: ObservableObject {
     }
 
     private func updateData() {
-        let cutoffDate = Calendar.current.date(byAdding: .day, value: -selectedTimeRange.days, to: Date()) ?? Date()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        // A 7-day range means today plus the previous six complete calendar
+        // days. Comparing against an exact time could discard the oldest day.
+        let cutoffDate = calendar.date(
+            byAdding: .day,
+            value: -(selectedTimeRange.days - 1),
+            to: today
+        ) ?? today
 
         let filteredMetrics = historicalMetrics
             .filter { $0.date >= cutoffDate }

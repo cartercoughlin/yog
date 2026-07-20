@@ -2,9 +2,9 @@ import SwiftUI
 import Charts
 
 struct TrainingPlanView: View {
-    @StateObject private var viewModel = TrainingPlanViewModel()
+    @EnvironmentObject var viewModel: TrainingPlanViewModel
     @EnvironmentObject var themeManager: ThemeManager
-    @State private var showSetup = false
+    @Binding var showSetup: Bool
     @State private var selectedWeekNumber: String?
     @State private var isRefreshing = false
     @State private var showSyncBanner = true
@@ -776,5 +776,7 @@ struct WeekRow: View {
 }
 
 #Preview {
-    TrainingPlanView()
+    TrainingPlanView(showSetup: .constant(false))
+        .environmentObject(ThemeManager())
+        .environmentObject(TrainingPlanViewModel())
 }

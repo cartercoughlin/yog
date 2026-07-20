@@ -14,6 +14,7 @@ class DashboardViewModel: ObservableObject {
     @Published var todayRecovery: RecoveryData?
     @Published var recommendation: WorkoutRecommendation?
     @Published var weeklyTrend: (average: Double, trend: Trend)?
+    @Published var recentRecoveryScores: [Double] = []
     @Published var historicalMetrics: [HealthMetrics] = []
     @Published var isLoading = false
     @Published var error: String?
@@ -104,6 +105,7 @@ class DashboardViewModel: ObservableObject {
             todayRecovery = recovery
             recommendation = workoutRec
             weeklyTrend = trend
+            recentRecoveryScores = historicalRecovery.suffix(7).map { Double($0.overallScore) }
             self.historicalMetrics = historicalMetrics
 
             // Update cache timestamp
@@ -140,6 +142,7 @@ class DashboardViewModel: ObservableObject {
         todayRecovery = nil
         recommendation = nil
         weeklyTrend = nil
+        recentRecoveryScores = []
         historicalMetrics = []
     }
 }

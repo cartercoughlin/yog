@@ -36,10 +36,17 @@ class TrainingAdjustmentEngine {
     }
 
     struct WorkoutAdjustment {
+        let workoutID: UUID
         let originalType: TrainingWorkoutType
         let suggestedType: TrainingWorkoutType
+        let title: String
         let reason: String
         let distanceModification: Double?  // Percentage (e.g., 0.8 for 80%)
+
+        func suggestedDistance(for workout: DailyWorkout) -> Double? {
+            guard let distance = workout.distanceInMiles else { return nil }
+            return distanceModification.map { distance * $0 } ?? distance
+        }
     }
 
     // MARK: - Recovery Score Analysis
@@ -90,7 +97,9 @@ class TrainingAdjustmentEngine {
         guard scores.count >= 3 else { return .stable }
 
         let recentAverage = scores.suffix(3).reduce(0, +) / 3.0
-        let previousAverage = scores.prefix(3).reduce(0, +) / 3.0
+        let previousWindow = scores.dropLast(3).suffix(3)
+        guard previousWindow.count == 3 else { return .stable }
+        let previousAverage = previousWindow.reduce(0, +) / 3.0
 
         let difference = recentAverage - previousAverage
 
@@ -114,8 +123,12 @@ class TrainingAdjustmentEngine {
             return .moderate
         }
 
-        // Moderate recovery with declining trend
-        if score < 70 && trend == .declining {
+        // Readiness below 70 should produce a concrete, conservative option.
+        if score < 70 {
+            return .minor
+        }
+
+        if score < 80 && trend == .declining {
             return .minor
         }
 
@@ -138,13 +151,39 @@ class TrainingAdjustmentEngine {
             break
 
         case .minor:
-            // Reduce intensity of hardest workout
-            if let hardestWorkout = qualityWorkouts.first(where: { $0.type == .interval || $0.type == .repetition }) {
+            for workout in qualityWorkouts {
+                let suggestedType: TrainingWorkoutType
+                let title: String
+                let reason: String
+                let distanceModification: Double
+
+                switch workout.type {
+                case .interval, .repetition:
+                    suggestedType = .threshold
+                    title = "Swap speed for threshold"
+                    reason = "Keep an aerobic quality stimulus without the full VO2 or repetition load."
+                    distanceModification = 0.80
+                case .threshold, .marathon, .racePace:
+                    suggestedType = workout.type
+                    title = "Shorten the pace work"
+                    reason = "Keep the planned pace, but stop while the effort is still controlled."
+                    distanceModification = 0.75
+                case .long:
+                    suggestedType = .long
+                    title = "Shorten the long run"
+                    reason = "Run conversationally and remove any fast finish or pace segment."
+                    distanceModification = 0.85
+                default:
+                    continue
+                }
+
                 adjustments.append(WorkoutAdjustment(
-                    originalType: hardestWorkout.type,
-                    suggestedType: .threshold,
-                    reason: "Moderate recovery - convert speed work to tempo",
-                    distanceModification: nil
+                    workoutID: workout.id,
+                    originalType: workout.type,
+                    suggestedType: suggestedType,
+                    title: title,
+                    reason: reason,
+                    distanceModification: distanceModification
                 ))
             }
 
@@ -158,9 +197,9 @@ class TrainingAdjustmentEngine {
                 case .interval, .repetition:
                     suggestedType = .easy
                     reason = "Low recovery - replace intensity with easy running"
-                case .threshold:
+                case .threshold, .marathon, .racePace:
                     suggestedType = .easy
-                    reason = "Low recovery - convert tempo to easy pace"
+                    reason = "Low recovery - convert pace work to easy running"
                 case .long:
                     suggestedType = .easy
                     reason = "Low recovery - reduce long run distance"
@@ -169,10 +208,12 @@ class TrainingAdjustmentEngine {
                 }
 
                 adjustments.append(WorkoutAdjustment(
+                    workoutID: workout.id,
                     originalType: workout.type,
                     suggestedType: suggestedType,
+                    title: workout.type == .long ? "Run shorter and easy" : "Replace with easy running",
                     reason: reason,
-                    distanceModification: workout.type == .long ? 0.7 : nil
+                    distanceModification: 0.7
                 ))
             }
 
@@ -181,15 +222,19 @@ class TrainingAdjustmentEngine {
             for workout in currentWeek.workouts where workout.type != .rest {
                 if workout.type.isQuality {
                     adjustments.append(WorkoutAdjustment(
+                        workoutID: workout.id,
                         originalType: workout.type,
                         suggestedType: .rest,
+                        title: "Take a rest day",
                         reason: "Very low recovery - prioritize rest",
                         distanceModification: nil
                     ))
                 } else if workout.type == .easy {
                     adjustments.append(WorkoutAdjustment(
+                        workoutID: workout.id,
                         originalType: workout.type,
                         suggestedType: .easy,
+                        title: "Cut the easy run in half",
                         reason: "Very low recovery - reduce volume significantly",
                         distanceModification: 0.5
                     ))
@@ -214,16 +259,16 @@ class TrainingAdjustmentEngine {
 
         switch severity {
         case .none:
-            return "Recovery score is \(Int(score)) and \(trendText). You're ready for your planned workouts!"
+            return "Readiness \(Int(score)), trend \(trendText): keep today's session as planned."
 
         case .minor:
-            return "Recovery score is \(Int(score)) and \(trendText). Consider reducing intensity slightly on quality workouts."
+            return "Readiness \(Int(score)), trend \(trendText): use the lower-load option if the warm-up feels harder than normal."
 
         case .moderate:
-            return "Recovery score is \(Int(score)) and \(trendText). Strongly recommend converting quality workouts to easy running this week."
+            return "Readiness \(Int(score)), trend \(trendText): replace today's quality work with easy running."
 
         case .significant:
-            return "Recovery score is critically low at \(Int(score)). Prioritize rest and recovery over training this week to prevent injury and burnout."
+            return "Readiness \(Int(score)): skip today's quality load and reassess tomorrow."
         }
     }
 

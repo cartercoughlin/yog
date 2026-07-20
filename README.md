@@ -20,6 +20,17 @@ A comprehensive iOS app for tracking athletic recovery, monitoring health metric
 - **Multiple Plan Support**: Create and manage multiple training plans simultaneously
 - **Race-Specific Training**: Customized plans for 5K, 10K, Half Marathon, and Marathon distances
 
+#### Training methodology references
+- [V.O2 Training Definitions](https://vdoto2.com/learn-more/training-definitions) - intensity definitions and workout-volume limits
+- [V.O2 Marathon Training Phases](https://news.vdoto2.com/2019/11/marathon-training-phases/) - progression from easy running through repetition, interval, threshold, and marathon-specific work
+- [V.O2 Adaptive Trainer Guide](https://support.vdoto2.com/vdot-adaptive-trainer-instructional-guide/) - quality-day spacing, mileage selection, and race-aware scheduling
+- [Hal Higdon Advanced 1 Marathon](https://www.halhigdon.com/training-programs/marathon-training/advanced-1-marathon/) - progressive long runs, stepback weeks, and taper structure
+- [Bandit Running — The Program](https://banditrunning.com/blogs/the-b-mail/a-massive-update-to-the-program-app) - a 16-week, goal- and mileage-based structure available for any marathon
+- [B.A.A. Marathon Training](https://www.baa.org/races/boston-marathon/info-for-athletes/boston-marathon-training/) - marathon simulations, mile repeats, long M-pace progressions, and 2 × 5-mile M-pace sessions
+- [TCS London Marathon Advanced Plan](https://www.londonmarathonevents.co.uk/sites/default/files/2025-10/2026_TCSLM_Advanced_Training_Plan.pdf) - progressive 16-, 18-, and 20-plus-mile long runs with race-specific segments
+
+The generator uses VDOT intensity and quality-volume limits, plus progressive long runs and recovery weeks. Every full marathon build uses the same core long-run spine regardless of its weekly-mileage setting: a 16-mile run with 10 miles progressing from M pace toward HM pace, an 18-mile run with 2 × 5 miles at M pace, an easy 20-miler, and a workout 20-miler. Plans peaking above 40 miles per week add a third 20-mile progression run. These race-specific long runs are deliberate exceptions to the normal 25-30%/150-minute VDOT cap, and their weeks omit a separate quality day. Race-specific phases also include controlled threshold mile repeats alongside shorter interval repetitions.
+
 ### 3. Injury Tracker
 - **Body Region Mapping**: Track injuries by specific body regions
 - **Severity Levels**: Categorize injuries from mild to severe

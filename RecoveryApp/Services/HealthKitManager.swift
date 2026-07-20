@@ -434,15 +434,26 @@ class HealthKitManager: ObservableObject {
 
     private func fetchRestingHeartRate(for date: Date) async throws -> Int? {
         let rhrType = HKQuantityType(.restingHeartRate)
-        let predicate = predicateForDay(date)
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+
+        // Resting-heart-rate samples can cover an interval that begins before
+        // midnight. A strict-start-date predicate drops those samples even
+        // though HealthKit associates part of the measurement with this day.
+        let predicate = HKQuery.predicateForSamples(
+            withStart: startOfDay,
+            end: endOfDay,
+            options: []
+        )
 
         print("❤️  Fetching Resting HR for \(date)...")
         let samples = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[HKQuantitySample], Error>) in
             let query = HKSampleQuery(
                 sampleType: rhrType,
                 predicate: predicate,
-                limit: 1,
-                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]
             ) { _, results, error in
                 if let error = error {
                     print("❌ RHR fetch error: \(error)")
@@ -454,13 +465,20 @@ class HealthKitManager: ObservableObject {
             healthStore.execute(query)
         }
 
-        print("   Found \(samples.count) RHR samples")
-        guard let sample = samples.first else {
+        let unit = HKUnit.count().unitDivided(by: .minute())
+        let values = samples
+            .map { $0.quantity.doubleValue(for: unit) }
+            .filter { $0.isFinite && $0 > 0 }
+
+        guard !values.isEmpty else {
             print("   ⚠️ No Resting HR data available")
             return nil
         }
-        let rhrValue = Int(sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute())))
-        print("   ✅ Resting HR: \(rhrValue) bpm")
+
+        let value = values.reduce(0, +) / Double(values.count)
+        let rhrValue = Int(value.rounded())
+        let sources = Set(samples.map { $0.sourceRevision.source.name }).sorted().joined(separator: ", ")
+        print("   ✅ Resting HR: \(rhrValue) bpm from \(values.count) sample(s) [\(sources)]")
         return rhrValue
     }
 
@@ -702,6 +720,10 @@ class HealthKitManager: ObservableObject {
                 options: .cumulativeSum
             ) { _, statistics, error in
                 if let error = error {
+                    if Self.isNoDataError(error) {
+                        continuation.resume(returning: nil)
+                        return
+                    }
                     continuation.resume(throwing: error)
                     return
                 }
@@ -723,6 +745,10 @@ class HealthKitManager: ObservableObject {
                 options: .cumulativeSum
             ) { _, statistics, error in
                 if let error = error {
+                    if Self.isNoDataError(error) {
+                        continuation.resume(returning: nil)
+                        return
+                    }
                     continuation.resume(throwing: error)
                     return
                 }
@@ -739,6 +765,14 @@ class HealthKitManager: ObservableObject {
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
         return HKQuery.predicateForSamples(withStart: startOfDay, end: endOfDay, options: .strictStartDate)
+    }
+
+    /// Statistics queries report an empty result as HKErrorNoData (code 11).
+    /// Optional health metrics should map that condition to `nil` rather than
+    /// fail the complete daily metrics request.
+    private static func isNoDataError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        return nsError.domain == HKErrorDomain && nsError.code == HKError.Code.errorNoData.rawValue
     }
 }
 

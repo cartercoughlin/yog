@@ -93,6 +93,21 @@ enum RecoveryCategory: String, Codable, CaseIterable {
         }
     }
 
+    var trainingGuidance: String {
+        switch self {
+        case .peak:
+            return "Full training load is supported today."
+        case .good:
+            return "Complete the planned session if the warm-up feels normal."
+        case .moderate:
+            return "Use the lower-load option for quality work."
+        case .low:
+            return "Replace quality work with easy running."
+        case .veryLow:
+            return "Skip quality work and reassess tomorrow."
+        }
+    }
+
     static func from(score: Int) -> RecoveryCategory {
         switch score {
         case 90...100:

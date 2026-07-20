@@ -108,7 +108,7 @@ enum TrainingWorkoutType: String, CaseIterable {
 
     var isQuality: Bool {
         switch self {
-        case .threshold, .interval, .repetition, .long, .hill, .racePace:
+        case .marathon, .threshold, .interval, .repetition, .long, .hill, .racePace:
             return true
         default:
             return false
@@ -394,9 +394,12 @@ extension TrainingPlan: Codable {
     }
 
     var currentWeek: WeeklyPlan? {
-        let today = Date()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
         return weeks.first { week in
-            today >= week.startDate && today <= week.endDate
+            let weekStart = calendar.startOfDay(for: week.startDate)
+            let dayAfterWeek = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? week.endDate
+            return today >= weekStart && today < dayAfterWeek
         }
     }
 

@@ -9,40 +9,26 @@ import SwiftUI
 
 struct HealthDataEmptyStateView: View {
     var body: some View {
-        VStack(spacing: 24) {
+        HStack(spacing: 12) {
             Image(systemName: "heart.text.square")
-                .font(.system(size: 60))
+                .font(.title3)
                 .foregroundStyle(.secondary)
-            
-            VStack(spacing: 12) {
-                Text("No Health Data Available")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("To get started, make sure your health data is syncing to Apple Health.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Setup Instructions:")
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Health data unavailable")
                     .font(.headline)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("• Sync Device to Apple Health")
-                    Text("• Wear your Device during sleep")
-                    Text("• Allow HealthKit permissions when prompted")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                Text("Check Apple Health permissions and sync status.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .padding()
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
+            Spacer()
         }
-        .padding(.horizontal, 32)
-        .padding(.top, 60)
+        .padding(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
+        )
+        .padding(.horizontal)
     }
 }
 

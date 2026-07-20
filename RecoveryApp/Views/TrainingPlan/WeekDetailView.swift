@@ -135,9 +135,7 @@ struct WeekDetailView: View {
             Divider()
 
             HStack {
-                statBox(title: "Quality Days", value: "\(week.qualityWorkouts.count)")
-                Divider().frame(height: 40)
-                statBox(title: "Workouts", value: isLoadingWorkouts ? "..." : "\(healthKitWorkouts.count)")
+                statBox(title: "Planned Workouts", value: "\(week.runningWorkouts.count)")
                 Divider().frame(height: 40)
                 statBox(title: "Actual Miles", value: isLoadingWorkouts ? "..." : String(format: "%.1f", totalRunningDistance))
             }

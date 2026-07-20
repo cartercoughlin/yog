@@ -12,29 +12,33 @@ struct HealthDataErrorView: View {
     let onRetry: () -> Void
     
     var body: some View {
-        VStack(spacing: 24) {
+        HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 60))
+                .font(.title3)
                 .foregroundStyle(.orange)
-            
-            VStack(spacing: 12) {
-                Text("Unable to Load Data")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Health data unavailable")
+                    .font(.headline)
                 Text(message)
-                    .font(.body)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    .lineLimit(1)
             }
-            
-            Button("Try Again") {
+
+            Spacer()
+
+            Button("Retry") {
                 onRetry()
             }
-            .buttonStyle(.borderedProminent)
+            .font(.subheadline)
         }
-        .padding(.horizontal, 32)
-        .padding(.top, 60)
+        .padding(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1.5)
+        )
+        .padding(.horizontal)
     }
 }
 
